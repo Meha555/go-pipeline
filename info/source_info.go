@@ -1,27 +1,35 @@
 package info
 
 import (
+	"encoding/json"
 	"fmt"
-	"go-pipeline/common"
-	"strings"
+	check "go-pipeline/internal/validator"
 )
 
-// SourceInfo 表示源码信息
+// SourceInfo 代码源信息结构体
 type SourceInfo struct {
-	BranchName common.OptString // 创建时产生
-	CommitId   common.OptString // pull时产生
-	Date       common.OptString // pull时产生
-	BuildId    common.OptString // build时产生
-	PushId     common.OptString // push时产生
+	// 传入部分
+	Repository string `json:"repository" validate:"required,url_or_path"` // 必须是URL或文件系统路径
+	Branch     string `json:"branch" validate:"omitempty,max=100"`        // 可选，最长100字符
+	// CommitId   string `json:"commit_id" validate:"omitempty,len=40"`      // 可选，Git commit ID通常是40位哈希
+	Tag string `json:"tag" validate:"omitempty,max=100"` // 可选，（commitid和tag不能同时指定，这里使用tag号）
+	// 传出部分，无需验证
+	Datetime string `json:"datetime"`
+	BuildId  string `json:"build_id"`
+	PushId   string `json:"push_id"`
 }
 
-// CoutSourceInfo 输出源码信息
-func (s SourceInfo) String(sourceInfo SourceInfo) string {
-	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("分支信息: %s\n", sourceInfo.BranchName.ValueOr("未指定")))
-	builder.WriteString(fmt.Sprintf("提交标识: %s\n", sourceInfo.CommitId.ValueOr("未指定")))
-	builder.WriteString(fmt.Sprintf("提交日期: %s\n", sourceInfo.Date.ValueOr("未指定")))
-	builder.WriteString(fmt.Sprintf("构建标识: %s\n", sourceInfo.BuildId.ValueOr("未指定")))
-	builder.WriteString(fmt.Sprintf("推送标识: %s\n", sourceInfo.PushId.ValueOr("未指定")))
-	return builder.String()
+func (s SourceInfo) ToString() string {
+	str, err := json.Marshal(s)
+	if err != nil {
+		return fmt.Sprintf("SourceInfo err: %v", err.Error())
+	}
+	return string(str)
+}
+
+func init() {
+	// 注册自定义验证器
+	if err := check.Validator.RegisterValidation("url_or_path", check.ValidateUrlOrPath); err != nil {
+		panic(err)
+	}
 }

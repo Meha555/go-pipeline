@@ -1,0 +1,42 @@
+# 当前pipeline的名称
+name: "camke-pipeline"
+# 当前pipeline的版本
+version: "1.0.0"
+
+# 整个pipeline的环境变量
+envs:
+  - CMAKE_GENERATOR=Ninja
+
+# 整个pipeline的工作目录
+workdir: "D:\\Dev\\Codes\\C or C++\\cmake_learn"
+
+stages:
+  - build
+  - test
+  # - deploy
+  - cleanup
+
+build_job:
+  stage: build
+  actions:
+    - rm -rf build
+    - cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_TOOLCHAIN_FILE="D:/Program/vcpkg/scripts/buildsystems/vcpkg.cmake" -DBUILD_TESTS=ON
+    - cmake --build build -j8
+
+test_job:
+  stage: test
+  actions:
+    - cmake --build build -j8 --target unit_test
+    - ctest --test-dir build
+
+# deploy_job:
+#   stage: deploy
+#   actions:
+#     - cmake --build build -j8 --target install
+#     - cmake --install build
+
+cleanup_job:
+  stage: cleanup
+  actions:
+    - rm -rf build
+    - rm -rf install
