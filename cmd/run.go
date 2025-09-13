@@ -29,13 +29,11 @@ var runCmd = &cobra.Command{
 
 var (
 	configFile string
-	errorsOnly bool
 )
 
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.Flags().BoolVarP(&errorsOnly, "errors-only", "e", false, "only show errors")
 	runCmd.Flags().StringVarP(&configFile, "file", "f", "", "config file")
 	runCmd.MarkFlagRequired("file")
 }

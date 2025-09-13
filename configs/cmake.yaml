@@ -19,9 +19,12 @@ stages:
 build_job:
   stage: build
   actions:
+    - pwd
     - rm -rf build
+    - cp examples.json build
     - cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_TOOLCHAIN_FILE="D:/Program/vcpkg/scripts/buildsystems/vcpkg.cmake" -DBUILD_TESTS=ON
     - cmake --build build -j8
+  allow_failure: yes
 
 test_job:
   stage: test

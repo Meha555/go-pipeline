@@ -1,6 +1,9 @@
 package pipeline
 
-import "context"
+import (
+	"context"
+	"log"
+)
 
 // Stage 定义阶段结构体
 type Stage struct {
@@ -21,6 +24,8 @@ func (s *Stage) AddJob(job *Job) *Stage {
 }
 
 func (s *Stage) Perform(ctx context.Context) Status {
+	log.Printf("Stage %s: %d jobs", s.Name, len(s.Jobs))
+
 	for _, job := range s.Jobs {
 		go job.Do(ctx)
 	}

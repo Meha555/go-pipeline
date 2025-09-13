@@ -1,12 +1,16 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"go-pipeline/pipeline"
 	"log"
+	"math"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,9 +24,11 @@ const (
 
 	keywordStages = "stages"
 
-	keywordJobs    = "jobs"
-	keywordStage   = "stage"
-	keywordActions = "actions"
+	keywordJobs         = "jobs"
+	keywordStage        = "stage"
+	keywordActions      = "actions"
+	keywordTimeout      = "timeout"
+	keywordAllowFailure = "allow_failure"
 )
 
 var keywordMap = []string{
@@ -34,6 +40,8 @@ var keywordMap = []string{
 	keywordJobs,
 	keywordStage,
 	keywordActions,
+	keywordTimeout,
+	keywordAllowFailure,
 }
 
 type PipelineConf struct {
@@ -46,8 +54,10 @@ type PipelineConf struct {
 }
 
 type JobConf struct {
-	Stage   string   `yaml:"stage"`
-	Actions []string `yaml:"actions"`
+	Stage        string   `yaml:"stage"`
+	Actions      []string `yaml:"actions"`
+	Timeout      string   `yaml:"timeout,omitempty"`
+	AllowFailure bool     `yaml:"allow_failure,omitempty"`
 }
 
 // ParseConfigFile 解析 YAML 配置文件并返回 Pipeline 对象
@@ -108,14 +118,71 @@ func ParseConfigFile(configPath string) (*pipeline.Pipeline, error) {
 		}
 
 		// 创建任务并添加到阶段
-		// jobArgs := []interface{}{jobName, config.Workdir, jobDef.Actions, exportVars}
 		var actions []*pipeline.Action
 		for _, actionLine := range jobDef.Actions {
 			actions = append(actions, pipeline.NewAction("sh", "-c", actionLine))
 		}
-		jobObj := pipeline.NewJob(jobName, actions...)
+		jobObj := pipeline.NewJob(jobName, actions, pipeline.WithAllowFailure(jobDef.AllowFailure))
+		if jobTimeout, err := parseDuration(jobDef.Timeout); err != nil {
+			if !errors.Is(err, ErrTimeoutIsEmpty) {
+				log.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
+			}
+		} else {
+			jobObj.Timeout = jobTimeout
+		}
 		stageObj.AddJob(jobObj)
 	}
 
 	return p, nil
+}
+
+var (
+	ErrTimeoutIsEmpty = errors.New("timeout is empty")
+	ErrTimeoutNoUnit  = errors.New("timeout has no unit")
+	ErrTimeoutValue   = errors.New("invalid timeout value")
+	ErrTimeoutUnit    = errors.New("invalid timeout unit, supported units are ms, s, m, h, d")
+)
+
+// parseDuration 解析带单位的时间字符串为time.Duration
+func parseDuration(duration string) (time.Duration, error) {
+	if duration == "" {
+		return time.Duration(math.MaxInt64), ErrTimeoutIsEmpty
+	}
+
+	unitIndex := -1
+	for i := 0; i < len(duration); i++ {
+		if duration[i] < '0' || duration[i] > '9' {
+			unitIndex = i
+			break
+		}
+	}
+	if unitIndex == -1 {
+		return time.Duration(math.MaxInt64), ErrTimeoutNoUnit
+	}
+
+	// 分割数值和单位
+	valueStr := duration[:unitIndex]
+	unit := strings.ToLower(duration[unitIndex:])
+
+	// 解析数值
+	value, err := strconv.Atoi(valueStr)
+	if err != nil || value < 0 {
+		return time.Duration(math.MaxInt64), fmt.Errorf("%w: %v", ErrTimeoutValue, err)
+	}
+
+	// 根据单位转换为对应的Duration
+	switch unit {
+	case "ms":
+		return time.Duration(value) * time.Millisecond, nil
+	case "s":
+		return time.Duration(value) * time.Second, nil
+	case "m":
+		return time.Duration(value) * time.Minute, nil
+	case "h":
+		return time.Duration(value) * time.Hour, nil
+	case "d":
+		return time.Duration(value) * 24 * time.Hour, nil
+	default:
+		return 0, fmt.Errorf("%w: %s", ErrTimeoutUnit, unit)
+	}
 }

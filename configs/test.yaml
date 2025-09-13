@@ -16,13 +16,16 @@ job1:
   actions:
     - echo "I am job1, $HELLO"
     - echo "I am in build stage"
+    - sleep 5
+    - echo "I am job1, slept for 5s"
+  timeout: 2s
+  allow_failure: yes
 
 job2:
   stage: test
   actions:
     - echo "I am job2, $HELLO"
     - echo "I am in test stage"
-  when: "on_success"
 
 job3:
   stage: deploy
