@@ -19,6 +19,7 @@ type PipelineConf struct {
 	Workdir string             `yaml:"workdir,omitempty"`
 	Stages  []string           `yaml:"stages"`
 	Jobs    map[string]jobConf `yaml:",inline"`
+	Skips   []string           `yaml:"skips,omitempty"`
 }
 
 type jobConf struct {

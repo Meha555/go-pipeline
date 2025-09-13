@@ -3,11 +3,17 @@ package pipeline
 import (
 	"errors"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/Meha555/go-pipeline/parser"
 )
 
+func isSkipped(config *parser.PipelineConf, item string) bool {
+	return slices.Contains(config.Skips, item)
+}
+
+// MakePipeline 根据配置信息创建流水线
 func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	// 处理环境变量
 	envs := make(map[string]string)
@@ -27,6 +33,9 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	// 为每个阶段创建 Stage 对象
 	stageMap := make(map[string]*Stage)
 	for _, stageName := range config.Stages {
+		if isSkipped(config, stageName) {
+			continue
+		}
 		stageObj := NewStage(stageName)
 		stageMap[stageName] = stageObj
 		pipeObj.AddStage(stageObj)
@@ -34,8 +43,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 
 	// 处理Job
 	for jobName, jobDef := range config.Jobs {
-		// 跳过内置字段
-		if parser.IsKeyword(jobName) {
+		if parser.IsKeyword(jobName) || isSkipped(config, jobName) {
 			continue
 		}
 

@@ -11,6 +11,11 @@ stages:
   - test
   - deploy
 
+skips: # 可以是stage或job
+  - test
+  - job5
+  - job6
+
 job1:
   stage: build
   actions:

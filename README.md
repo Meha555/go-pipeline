@@ -59,6 +59,10 @@ stages:
   - test
   - cleanup
 
+skips:
+  - test
+  - cleanup_job
+
 build_job:
   stage: build
   actions:
