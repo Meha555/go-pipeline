@@ -68,11 +68,17 @@ func NewJob(name string, actions []*Action, opts ...JobOptions) *Job {
 	return j
 }
 
-// TODO 利用ctx来终止action
-func (j *Job) Do(ctx context.Context) Status {
+func (j *Job) Do(ctx context.Context) (status Status) {
+	status = Success
 	log.Printf("Job %s: %d actions", j.Name, len(j.Actions))
+	defer func() {
+		if status == Failed {
+			log.Printf("Job %s failed", j.Name)
+		} else {
+			log.Printf("Job %s success", j.Name)
+		}
+	}()
 
-	var status = Success
 	if j.Timeout != time.Duration(math.MaxInt64) {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, j.Timeout)
@@ -93,7 +99,7 @@ func (j *Job) Do(ctx context.Context) Status {
 		}
 	}
 	j.resCh <- status
-	return status
+	return
 }
 
 func (j *Job) Result() <-chan Status {

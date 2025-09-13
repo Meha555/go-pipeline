@@ -58,7 +58,16 @@ func (p *Pipeline) AddStage(stage *Stage) *Pipeline {
 }
 
 // NOTE 不需要恢复工作目录和环境变量，因为程序执行完就退出了
-func (p *Pipeline) Run() Status {
+func (p *Pipeline) Run(ctx context.Context) (status Status) {
+	status = Success
+	defer func() {
+		if status == Failed {
+			log.Printf("Pipeline %s@%s failed", p.Name, p.Version)
+		} else {
+			log.Printf("Pipeline %s@%s success", p.Name, p.Version)
+		}
+	}()
+
 	for key, value := range p.Envs {
 		if err := os.Setenv(key, value); err != nil {
 			log.Printf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err)
@@ -77,12 +86,11 @@ func (p *Pipeline) Run() Status {
 	}
 	log.Printf("Pipeline %s@%s (%s): %v", p.Name, p.Version, p.Workdir, stageNames)
 
-	ctx := context.Background()
-
 	for _, stage := range p.Stages {
 		if stage.Perform(ctx) == Failed {
-			return Failed
+			status = Failed
+			return
 		}
 	}
-	return Success
+	return
 }

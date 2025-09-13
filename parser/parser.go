@@ -3,11 +3,8 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"go-pipeline/pipeline"
-	"log"
 	"math"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,53 +12,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// keywords
-const (
-	keywordName    = "name"
-	keywordVersion = "version"
-	keywordEnvs    = "envs"
-	keywordWorkdir = "workdir"
-
-	keywordStages = "stages"
-
-	keywordJobs         = "jobs"
-	keywordStage        = "stage"
-	keywordActions      = "actions"
-	keywordTimeout      = "timeout"
-	keywordAllowFailure = "allow_failure"
-)
-
-var keywordMap = []string{
-	keywordName,
-	keywordVersion,
-	keywordEnvs,
-	keywordWorkdir,
-	keywordStages,
-	keywordJobs,
-	keywordStage,
-	keywordActions,
-	keywordTimeout,
-	keywordAllowFailure,
-}
-
 type PipelineConf struct {
 	Name    string             `yaml:"name"`
 	Version string             `yaml:"version"`
 	Envs    []string           `yaml:"envs,omitempty"`
 	Workdir string             `yaml:"workdir,omitempty"`
 	Stages  []string           `yaml:"stages"`
-	Jobs    map[string]JobConf `yaml:",inline"`
+	Jobs    map[string]jobConf `yaml:",inline"`
 }
 
-type JobConf struct {
+type jobConf struct {
 	Stage        string   `yaml:"stage"`
 	Actions      []string `yaml:"actions"`
 	Timeout      string   `yaml:"timeout,omitempty"`
 	AllowFailure bool     `yaml:"allow_failure,omitempty"`
 }
 
-// ParseConfigFile 解析 YAML 配置文件并返回 Pipeline 对象
-func ParseConfigFile(configPath string) (*pipeline.Pipeline, error) {
+// ParseConfigFile 解析 YAML 配置文件
+func ParseConfigFile(configPath string) (*PipelineConf, error) {
 	// 检查文件是否存在
 	if _, err := os.Stat(configPath); err != nil {
 		return nil, err
@@ -79,61 +47,7 @@ func ParseConfigFile(configPath string) (*pipeline.Pipeline, error) {
 		return nil, fmt.Errorf("unmarshal config failed: %w", err)
 	}
 
-	// 处理环境变量
-	envs := make(map[string]string)
-	for _, envLine := range config.Envs {
-		if parts := strings.SplitN(envLine, "=", 2); len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			envs[key] = value
-		} else {
-			log.Printf("invalid env format: %s (expected key=value)", envLine)
-		}
-	}
-
-	// 创建流水线
-	p := pipeline.NewPipeline(config.Name, config.Version, pipeline.WithEnvs(envs), pipeline.WithWorkdir(config.Workdir))
-
-	// 为每个阶段创建 Stage 对象
-	stageMap := make(map[string]*pipeline.Stage)
-	for _, stageName := range config.Stages {
-		stageObj := pipeline.NewStage(stageName)
-		stageMap[stageName] = stageObj
-		p.AddStage(stageObj)
-	}
-
-	// 处理Job
-	for jobName, jobDef := range config.Jobs {
-		// 跳过内置字段
-		if slices.Contains(keywordMap, jobName) {
-			continue
-		}
-
-		// 检查对应的Stage是否存在
-		stageObj, exists := stageMap[jobDef.Stage]
-		if !exists {
-			// 如果Stage不存在，丢弃Job
-			log.Printf("job %s belong to undefined stage %s, ignored it", jobName, jobDef.Stage)
-			continue
-		}
-
-		// 创建任务并添加到阶段
-		var actions []*pipeline.Action
-		for _, actionLine := range jobDef.Actions {
-			actions = append(actions, pipeline.NewAction("sh", "-c", actionLine))
-		}
-		jobObj := pipeline.NewJob(jobName, actions, pipeline.WithAllowFailure(jobDef.AllowFailure))
-		if jobTimeout, err := parseDuration(jobDef.Timeout); err != nil {
-			if !errors.Is(err, ErrTimeoutIsEmpty) {
-				log.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
-			}
-		} else {
-			jobObj.Timeout = jobTimeout
-		}
-		stageObj.AddJob(jobObj)
-	}
-
-	return p, nil
+	return config, nil
 }
 
 var (
@@ -143,8 +57,8 @@ var (
 	ErrTimeoutUnit    = errors.New("invalid timeout unit, supported units are ms, s, m, h, d")
 )
 
-// parseDuration 解析带单位的时间字符串为time.Duration
-func parseDuration(duration string) (time.Duration, error) {
+// ParseDuration 解析带单位的时间字符串为time.Duration
+func ParseDuration(duration string) (time.Duration, error) {
 	if duration == "" {
 		return time.Duration(math.MaxInt64), ErrTimeoutIsEmpty
 	}

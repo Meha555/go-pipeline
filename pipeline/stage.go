@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"log"
 )
 
@@ -9,6 +10,8 @@ import (
 type Stage struct {
 	Name string
 	Jobs []*Job
+
+	failedCnt int
 }
 
 func NewStage(name string) *Stage {
@@ -23,16 +26,27 @@ func (s *Stage) AddJob(job *Job) *Stage {
 	return s
 }
 
-func (s *Stage) Perform(ctx context.Context) Status {
+func (s *Stage) Perform(ctx context.Context) (status Status) {
+	status = Success
 	log.Printf("Stage %s: %d jobs", s.Name, len(s.Jobs))
+	defer func() {
+		statistics := fmt.Sprintf("(%d failed/%d total)", s.failedCnt, len(s.Jobs))
+		if status == Failed {
+			log.Printf("Stage %s failed %s", s.Name, statistics)
+		} else {
+			log.Printf("Stage %s success %s", s.Name, statistics)
+		}
+	}()
 
 	for _, job := range s.Jobs {
 		go job.Do(ctx)
 	}
-	var status Status = Success
 	// 等待所有任务完成
 	for _, job := range s.Jobs {
 		status = <-job.Result()
+		if status == Failed {
+			s.failedCnt++
+		}
 	}
-	return status
+	return
 }

@@ -1,7 +1,7 @@
 package main
 
-import "go-pipeline/cmd"
+import "github.com/Meha555/go-pipeline/cli"
 
 func main() {
-	cmd.Execute()
+	cli.Execute()
 }

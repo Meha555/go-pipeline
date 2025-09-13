@@ -9,13 +9,15 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/Meha555/go-pipeline/internal"
 )
 
 // Action 一次性动作
 type Action struct {
-	Cmd   string
-	Args  []string
-	valid bool
+	Cmd    string
+	Args   []string
+	valid  bool
 	stdout io.ReadCloser
 	stderr io.ReadCloser
 }
@@ -40,8 +42,8 @@ func (a *Action) prepare(ctx context.Context) *exec.Cmd {
 		return nil
 	}
 	cmd := exec.CommandContext(ctx, a.Cmd, a.Args...)
-	a.stdout, _ = cmd.StdoutPipe()
-	a.stderr, _ = cmd.StderrPipe()
+	// a.stdout, _ = cmd.StdoutPipe()
+	// a.stderr, _ = cmd.StderrPipe()
 	return cmd
 }
 
@@ -52,8 +54,18 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 		err = ErrActionInvalid
 		return
 	}
-	go readOutput(a.stdout, os.Stdout)
-	go readOutput(a.stderr, os.Stderr)
+
+	if verbose, ok := ctx.Value(internal.VerboseKey).(bool); ok && verbose {
+		a.stdout, _ = cmd.StdoutPipe()
+		a.stderr, _ = cmd.StderrPipe()
+		go readOutput(a.stdout, os.Stdout)
+		go readOutput(a.stderr, os.Stderr)
+		// } else {
+		// 	// 即使不显示输出，也要读取并丢弃输出，防止管道写端阻塞而导致当前goroutine卡死
+		// 	go readOutput(a.stdout, io.Discard)
+		// 	go readOutput(a.stderr, io.Discard)
+	}
+
 	err = cmd.Start()
 	if err == nil {
 		err = cmd.Wait()
