@@ -3,11 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/Meha555/go-pipeline/internal"
 	"github.com/spf13/cobra"
-)
-
-const (
-	Version = "0.0.1"
 )
 
 // versionCmd 打印版本号
@@ -16,7 +13,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print Version",
 	Long:  "Print Version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(Version)
+		fmt.Println(internal.Version)
 	},
 }
 

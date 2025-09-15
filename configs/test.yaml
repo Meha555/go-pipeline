@@ -4,15 +4,16 @@ version: "1.0.0"
 envs:
   - "HELLO=world"
 
-workdir: "D:\\Dev\\Codes\\C or C++\\cmake_learn"
+workdir: "D:\\"
 
 stages:
   - build
   - test
   - deploy
+  # - test
 
 skips: # 可以是stage或job
-  - test
+  # - test
   - job5
   - job6
 

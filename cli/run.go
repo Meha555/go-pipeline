@@ -28,6 +28,12 @@ var runCmd = &cobra.Command{
 		if verbose {
 			ctx = context.WithValue(ctx, internal.VerboseKey, verbose)
 		}
+		if trace && !dryRun {
+			ctx = context.WithValue(ctx, internal.TraceKey, trace)
+		}
+		if dryRun {
+			ctx = context.WithValue(ctx, internal.DryRunKey, dryRun)
+		}
 
 		status := pipe.Run(ctx)
 		if status == pipeline.Failed {
@@ -40,12 +46,16 @@ var runCmd = &cobra.Command{
 var (
 	configFile string
 	verbose    bool
+	trace      bool
+	dryRun     bool
 )
 
 func init() {
 	rootCmd.AddCommand(runCmd)
 
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output for jobs")
+	runCmd.Flags().BoolVarP(&trace, "trace", "t", false, "time trace for jobs")
+	runCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "dry run")
 	runCmd.Flags().StringVarP(&configFile, "file", "f", "", "config file")
 	runCmd.MarkFlagRequired("file")
 }

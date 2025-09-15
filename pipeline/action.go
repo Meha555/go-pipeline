@@ -55,6 +55,10 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 		return
 	}
 
+	if dryRun, ok := ctx.Value(internal.DryRunKey).(bool); ok && dryRun {
+		log.Println(a.String())
+		return
+	}
 	if verbose, ok := ctx.Value(internal.VerboseKey).(bool); ok && verbose {
 		a.stdout, _ = cmd.StdoutPipe()
 		a.stderr, _ = cmd.StderrPipe()

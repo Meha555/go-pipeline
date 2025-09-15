@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"os"
+
+	"github.com/Meha555/go-pipeline/internal"
 )
 
 // Pipeline 定义流水线结构体
@@ -13,6 +15,8 @@ type Pipeline struct {
 	Envs    map[string]string
 	Workdir string
 	Stages  []*Stage
+
+	timer *internal.Timer
 }
 
 type PipelineOptions func(*Pipeline)
@@ -35,6 +39,7 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 		Version: version,
 		Envs:    map[string]string{},
 		Stages:  []*Stage{},
+		timer:   &internal.Timer{},
 	}
 
 	for _, opt := range opts {
@@ -60,6 +65,14 @@ func (p *Pipeline) AddStage(stage *Stage) *Pipeline {
 // NOTE 不需要恢复工作目录和环境变量，因为程序执行完就退出了
 func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	status = Success
+	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
+		p.timer.Start()
+		defer func() {
+			p.timer.Elapsed()
+			log.Printf("Pipeline %s@%s cost %v", p.Name, p.Version, p.timer.Elapsed())
+		}()
+	}
+
 	defer func() {
 		if status == Failed {
 			log.Printf("Pipeline %s@%s failed", p.Name, p.Version)

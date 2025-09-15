@@ -6,6 +6,8 @@ import (
 	"log"
 	"math"
 	"time"
+
+	"github.com/Meha555/go-pipeline/internal"
 )
 
 type Status int
@@ -36,6 +38,9 @@ type Job struct {
 	Timeout      time.Duration
 	AllowFailure bool
 	resCh        chan Status
+	timer        *internal.Timer
+
+	s *Stage
 }
 
 type JobOptions func(*Job)
@@ -52,13 +57,15 @@ func WithAllowFailure(allowFailure bool) JobOptions {
 	}
 }
 
-func NewJob(name string, actions []*Action, opts ...JobOptions) *Job {
+func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 	j := &Job{
 		Name:         name,
 		Actions:      actions,
 		resCh:        make(chan Status),
 		Timeout:      time.Duration(math.MaxInt64),
 		AllowFailure: false,
+		timer:        &internal.Timer{},
+		s:            s,
 	}
 
 	for _, opt := range opts {
@@ -70,6 +77,17 @@ func NewJob(name string, actions []*Action, opts ...JobOptions) *Job {
 
 func (j *Job) Do(ctx context.Context) (status Status) {
 	status = Success
+	// 如果不同步一下，单纯的 <- j.resCh 不能代表Job.Do的执行逻辑走完了，特别是还存在defer的情况下
+	defer j.s.wg.Done()
+
+	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
+		j.timer.Start()
+		defer func() {
+			j.timer.Elapsed()
+			log.Printf("Job %s cost %v", j.Name, j.timer.Elapsed())
+		}()
+	}
+
 	log.Printf("Job %s: %d actions", j.Name, len(j.Actions))
 	defer func() {
 		if status == Failed {

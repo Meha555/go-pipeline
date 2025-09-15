@@ -36,7 +36,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		if isSkipped(config, stageName) {
 			continue
 		}
-		stageObj := NewStage(stageName)
+		stageObj := NewStage(stageName, pipeObj)
 		stageMap[stageName] = stageObj
 		pipeObj.AddStage(stageObj)
 	}
@@ -60,7 +60,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		for _, actionLine := range jobDef.Actions {
 			actions = append(actions, NewAction("sh", "-c", actionLine))
 		}
-		jobObj := NewJob(jobName, actions, WithAllowFailure(jobDef.AllowFailure))
+		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure))
 		if jobTimeout, err := parser.ParseDuration(jobDef.Timeout); err != nil {
 			if !errors.Is(err, parser.ErrTimeoutIsEmpty) {
 				log.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
