@@ -36,8 +36,11 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		if isSkipped(config, stageName) {
 			continue
 		}
-		stageObj := NewStage(stageName, pipeObj)
-		stageMap[stageName] = stageObj
+		stageObj, exists := stageMap[stageName]
+		if !exists {
+			stageObj = NewStage(stageName, pipeObj)
+			stageMap[stageName] = stageObj
+		}
 		pipeObj.AddStage(stageObj)
 	}
 

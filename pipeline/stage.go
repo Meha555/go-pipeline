@@ -15,11 +15,10 @@ type Stage struct {
 	Name string
 	Jobs []*Job
 
-	failedCnt int
-
 	timer *internal.Timer
 	wg    *sync.WaitGroup
 	p     *Pipeline
+	failedCnt int
 }
 
 func NewStage(name string, p *Pipeline) *Stage {

@@ -5,26 +5,27 @@ version: "1.0.0"
 
 # 整个pipeline的环境变量
 envs:
-  - CMAKE_GENERATOR=Ninja
+  - CMAKE_TOOLCHAIN_FILE=F:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake # 路径在windows上必须转义，因此如果要括起来的话，必须用双引号
 
 # 整个pipeline的工作目录
-workdir: "D:\\Dev\\Codes\\C or C++\\cmake_learn"
+workdir: "F:\\repos\\personal\\playground\\cmake_learn"
 
 stages:
+  - cleanup
   - build
   - test
-  # - deploy
+  - deploy
   - cleanup
+
+skips:
+  - deploy
 
 build_job:
   stage: build
   actions:
     - pwd
-    - rm -rf build
-    - cp examples.json build
-    - cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_TOOLCHAIN_FILE="D:/Program/vcpkg/scripts/buildsystems/vcpkg.cmake" -DBUILD_TESTS=ON
+    - cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja -DBUILD_TESTS=ON
     - cmake --build build -j8
-  allow_failure: yes
 
 test_job:
   stage: test
@@ -32,14 +33,17 @@ test_job:
     - cmake --build build -j8 --target unit_test
     - ctest --test-dir build
 
-# deploy_job:
-#   stage: deploy
-#   actions:
-#     - cmake --build build -j8 --target install
-#     - cmake --install build
+deploy_job:
+  stage: deploy
+  actions:
+    - cmake --build build -j8 --target install
+    - cmake --install build
+  allow_failure: yes
 
 cleanup_job:
   stage: cleanup
   actions:
     - rm -rf build
     - rm -rf install
+  allow_failure: yes
+  timeout: 5s

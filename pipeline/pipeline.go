@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -16,7 +17,8 @@ type Pipeline struct {
 	Workdir string
 	Stages  []*Stage
 
-	timer *internal.Timer
+	timer      *internal.Timer
+	succeedCnt int
 }
 
 type PipelineOptions func(*Pipeline)
@@ -74,10 +76,11 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	}
 
 	defer func() {
+		statistics := fmt.Sprintf("(%d succeed/%d total)", p.succeedCnt, len(p.Stages))
 		if status == Failed {
-			log.Printf("Pipeline %s@%s failed", p.Name, p.Version)
+			log.Printf("Pipeline %s@%s failed %s", p.Name, p.Version, statistics)
 		} else {
-			log.Printf("Pipeline %s@%s success", p.Name, p.Version)
+			log.Printf("Pipeline %s@%s success %s", p.Name, p.Version, statistics)
 		}
 	}()
 
@@ -104,6 +107,7 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			status = Failed
 			return
 		}
+		p.succeedCnt++
 	}
 	return
 }
