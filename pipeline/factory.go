@@ -43,7 +43,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 
 	// 处理Job
 	for jobName, jobDef := range config.Jobs {
-		if parser.IsKeyword(jobName) || isSkipped(config, jobName) {
+		if parser.IsKeyword(jobName) || isSkipped(config, jobName) || isSkipped(config, jobDef.Stage) {
 			continue
 		}
 
