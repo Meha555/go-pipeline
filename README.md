@@ -39,6 +39,8 @@ After installation, the `go-pipeline` binary will be available in your `$GOPATH/
 - Only forward dependencies are allowed for all components (to avoid complex dependency relationships).
 - Why is Job failure allowed while Stage failure is not? Because a Job, as the minimum execution unit, already contains many Actions and can complete a range of tasks. A Stage only serves to better isolate the relationships and order between Jobs. Therefore, if a Stage might fail, its failure handling must be properly addressed before being written into the configuration file.
 
+You can obtain serval runtime information through builtin environment variables. Use `go-pipeline envs` to list all builtin envrionment variables.
+
 ## Quick Start
 
 ### 1. Create a Pipeline Configuration

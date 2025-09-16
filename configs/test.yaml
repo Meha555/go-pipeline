@@ -7,6 +7,7 @@ envs:
 workdir: "D:\\"
 
 stages:
+  - debug
   - build
   - test
   - deploy
@@ -17,9 +18,20 @@ skips: # 可以是stage或job
   - job5
   - job6
 
+debug_job:
+  stage: debug
+  actions:
+    - "echo \"builtin PIPELINE_NAME: $PIPELINE_NAME\""
+    - "echo \"builtin PIPELINE_VERSION: $PIPELINE_VERSION\""
+    - "echo \"builtin PIPELINE_TIMESTAMP: $PIPELINE_TIMESTAMP\""
+    - "echo \"builtin PIPELINE_WORKDIR: $PIPELINE_WORKDIR\""
+    - "echo \"builtin STAGE_NAME: $STAGE_NAME\""
+    - "echo \"builtin JOB_NAME: $JOB_NAME\""
+
 job1:
   stage: build
   actions:
+    - "echo \"job1 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job1, $HELLO"
     - echo "I am in build stage"
     - sleep 5
@@ -30,6 +42,7 @@ job1:
 job2:
   stage: test
   actions:
+    - "echo \"job2 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job2, $HELLO"
     - echo "I am in test stage"
     - "echo \"kv whoami: $USER\""
@@ -40,29 +53,34 @@ job2:
 job3:
   stage: deploy
   actions:
+    - "echo \"job3 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job3, $HELLO"
     - echo "I am in deploy stage"
 
 job4:
   stage: deploy
   actions:
+    - "echo \"job4 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job4, $HELLO"
     - echo "I am in deploy stage"
 
 job5:
   stage: deploy
   actions:
+    - "echo \"job5 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job5, $HELLO"
     - echo "I am in deploy stage"
 
 job6:
   stage: deploy
   actions:
+    - "echo \"job6 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job6, $HELLO"
     - echo "I am in deploy stage"
 
 job7:
   stage: deploy
   actions:
+    - "echo \"job7 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job7, $HELLO"
     - echo "I am in deploy stage"

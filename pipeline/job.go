@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"math"
+	"os"
 	"time"
 
 	"github.com/Meha555/go-pipeline/internal"
@@ -76,6 +77,7 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 }
 
 func (j *Job) Do(ctx context.Context) (status Status) {
+	os.Setenv("JOB_NAME", j.Name)
 	status = Success
 	// 如果不同步一下，单纯的 <- j.resCh 不能代表Job.Do的执行逻辑走完了，特别是还存在defer的情况下
 	defer j.s.wg.Done()

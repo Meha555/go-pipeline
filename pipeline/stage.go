@@ -15,9 +15,9 @@ type Stage struct {
 	Name string
 	Jobs []*Job
 
-	timer *internal.Timer
-	wg    *sync.WaitGroup
-	p     *Pipeline
+	timer     *internal.Timer
+	wg        *sync.WaitGroup
+	p         *Pipeline
 	failedCnt int
 }
 
@@ -37,6 +37,7 @@ func (s *Stage) AddJob(job *Job) *Stage {
 }
 
 func (s *Stage) Perform(ctx context.Context) (status Status) {
+	os.Setenv("STAGE_NAME", s.Name)
 	status = Success
 	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
 		s.timer.Start()

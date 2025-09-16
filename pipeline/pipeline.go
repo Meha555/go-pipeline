@@ -83,7 +83,8 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			log.Printf("Pipeline %s@%s success %s", p.Name, p.Version, statistics)
 		}
 	}()
-
+	// 初始化内置环境变量
+	setupBuiltins(p)
 	for key, value := range p.Envs {
 		if err := os.Setenv(key, value); err != nil {
 			log.Printf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err)
