@@ -32,6 +32,10 @@ job2:
   actions:
     - echo "I am job2, $HELLO"
     - echo "I am in test stage"
+    - "echo \"kv whoami: $USER\""
+    - "echo \"kv gender: $GENDER\""
+    - "echo \"flag male: $MALE\""
+    - "echo \"flag female: $FEMALE\""
 
 job3:
   stage: deploy

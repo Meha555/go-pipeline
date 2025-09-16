@@ -17,6 +17,7 @@ var runCmd = &cobra.Command{
 	Short: "Run a pipeline",
 	Long:  "Run a pipeline through a config file",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// 没有被注册到cobra的参数会被认为是额外参数出现在这里的args中
 		conf, err := parser.ParseConfigFile(configFile)
 		if err != nil {
 			return fmt.Errorf("parsing %s failed: %w", configFile, err)
@@ -25,6 +26,8 @@ var runCmd = &cobra.Command{
 		pipe := pipeline.MakePipeline(conf)
 
 		ctx := context.Background()
+		// 处理额外的参数
+		parser.ParseArgs(args, ctx)
 		if verbose {
 			ctx = context.WithValue(ctx, internal.VerboseKey, verbose)
 		}

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -99,5 +100,22 @@ func ParseDuration(duration string) (time.Duration, error) {
 		return time.Duration(value) * 24 * time.Hour, nil
 	default:
 		return 0, fmt.Errorf("%w: %s", ErrTimeoutUnit, unit)
+	}
+}
+
+func ParseArgs(args []string, ctx context.Context) {
+	if len(args) == 0 {
+		return
+	}
+	// 这些额外参数会被解析为KV对或FLAG，存储到环境变量中，方便在命令中取用
+	for _, arg := range args {
+		kv := strings.SplitN(arg, "=", 2)
+		if len(kv) == 2 { // KEY=VALUE
+			// ctx = context.WithValue(ctx, internal.ContextKey(kv[0]), kv[1])
+			os.Setenv(kv[0], kv[1])
+		} else { // FLAG
+			// ctx = context.WithValue(ctx, internal.ContextKey(arg), "true")
+			os.Setenv(arg, "true")
+		}
 	}
 }
