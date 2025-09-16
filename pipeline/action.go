@@ -54,7 +54,9 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 		err = ErrActionInvalid
 		return
 	}
-
+	if noSilence, ok := ctx.Value(internal.NoSilenceKey).(bool); ok && noSilence {
+		log.Printf("exec action: %s", a.String())
+	}
 	if dryRun, ok := ctx.Value(internal.DryRunKey).(bool); ok && dryRun {
 		log.Println(a.String())
 		return

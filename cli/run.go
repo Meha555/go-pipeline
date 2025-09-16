@@ -31,6 +31,9 @@ var runCmd = &cobra.Command{
 		if verbose {
 			ctx = context.WithValue(ctx, internal.VerboseKey, verbose)
 		}
+		if noSilence {
+			ctx = context.WithValue(ctx, internal.NoSilenceKey, noSilence)
+		}
 		if trace && !dryRun {
 			ctx = context.WithValue(ctx, internal.TraceKey, trace)
 		}
@@ -49,6 +52,7 @@ var runCmd = &cobra.Command{
 var (
 	configFile string
 	verbose    bool
+	noSilence  bool
 	trace      bool
 	dryRun     bool
 )
@@ -56,6 +60,7 @@ var (
 func init() {
 	rootCmd.AddCommand(runCmd)
 
+	runCmd.Flags().BoolVarP(&noSilence, "no-silence", "s", false, "print every action")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output for jobs")
 	runCmd.Flags().BoolVarP(&trace, "trace", "t", false, "time trace for jobs")
 	runCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "dry run")

@@ -3,7 +3,8 @@ package internal
 type ContextKey string
 
 const (
-	VerboseKey ContextKey = "verbose"
-	TraceKey   ContextKey = "trace"
-	DryRunKey  ContextKey = "dry-run"
+	VerboseKey   ContextKey = "verbose"
+	NoSilenceKey ContextKey = "no-silence"
+	TraceKey     ContextKey = "trace"
+	DryRunKey    ContextKey = "dry-run"
 )
