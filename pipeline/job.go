@@ -3,7 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"math"
 	"os"
 	"time"
@@ -77,6 +77,8 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 }
 
 func (j *Job) Do(ctx context.Context) (status Status) {
+	defer logger.SetPrefix(logger.Prefix())
+	logger.SetPrefix(fmt.Sprintf("job[%s] ", j.Name))
 	os.Setenv("JOB_NAME", j.Name)
 	status = Success
 	// 如果不同步一下，单纯的 <- j.resCh 不能代表Job.Do的执行逻辑走完了，特别是还存在defer的情况下
@@ -86,16 +88,16 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 		j.timer.Start()
 		defer func() {
 			j.timer.Elapsed()
-			log.Printf("Job %s cost %v", j.Name, j.timer.Elapsed())
+			logger.Printf("Job %s cost %v", j.Name, j.timer.Elapsed())
 		}()
 	}
 
-	log.Printf("Job %s: %d actions", j.Name, len(j.Actions))
+	logger.Printf("Job %s: %d actions", j.Name, len(j.Actions))
 	defer func() {
 		if status == Failed {
-			log.Printf("Job %s failed", j.Name)
+			logger.Printf("Job %s failed", j.Name)
 		} else {
-			log.Printf("Job %s success", j.Name)
+			logger.Printf("Job %s success", j.Name)
 		}
 	}()
 
@@ -108,9 +110,9 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 		// 要求Exec是阻塞的
 		if err := action.Exec(ctx); err != nil {
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				log.Printf("action (%s) timeout %v exceeded", action, j.Timeout)
+				logger.Printf("action (%s) timeout %v exceeded", action, j.Timeout)
 			} else {
-				log.Printf("action (%s) failed: %v", action, err)
+				logger.Printf("action (%s) failed: %v", action, err)
 			}
 			if !j.AllowFailure {
 				status = Failed

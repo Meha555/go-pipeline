@@ -29,7 +29,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 				return envs[v]
 			})
 		} else {
-			log.Printf("invalid env format: %s (expected key=value)", envLine)
+			logger.Printf("invalid env format: %s (expected key=value)", envLine)
 		}
 	}
 
@@ -60,7 +60,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		stageObj, exists := stageMap[jobDef.Stage]
 		if !exists {
 			// 如果Stage不存在，丢弃Job
-			log.Printf("job %s belong to undefined stage %s, ignored it", jobName, jobDef.Stage)
+			logger.Printf("job %s belong to undefined stage %s, ignored it", jobName, jobDef.Stage)
 			continue
 		}
 
@@ -72,7 +72,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure))
 		if jobTimeout, err := parser.ParseDuration(jobDef.Timeout); err != nil {
 			if !errors.Is(err, parser.ErrTimeoutIsEmpty) {
-				log.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
+				logger.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
 			}
 		} else {
 			jobObj.Timeout = jobTimeout
@@ -82,3 +82,5 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 
 	return pipeObj
 }
+
+var logger = log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)

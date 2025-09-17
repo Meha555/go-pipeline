@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -50,10 +49,10 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 	}()
 	a.busy = true
 	if noSilence, ok := ctx.Value(internal.NoSilenceKey).(bool); ok && noSilence {
-		log.Printf("exec action: %s", a.String())
+		logger.Printf("exec action: %s", a.String())
 	}
 	if dryRun, ok := ctx.Value(internal.DryRunKey).(bool); ok && dryRun {
-		log.Println(a.String())
+		logger.Println(a.String())
 		return
 	}
 	if verbose, ok := ctx.Value(internal.VerboseKey).(bool); ok && verbose {
@@ -85,6 +84,7 @@ func readOutput(reader io.Reader, out io.Writer) {
 		io.WriteString(out, "\n")
 	}
 	if err := scanner.Err(); err != nil {
-		log.Printf("read output error: %v", err)
+		// 由于scanner.Scan()可能在cmd.Wait()关闭管道写端后继续读取，所以这里可能报错"file already closed"，不用在意
+		logger.Printf("read output error: %v", err)
 	}
 }

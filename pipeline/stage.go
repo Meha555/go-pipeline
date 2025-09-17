@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 
@@ -37,29 +36,31 @@ func (s *Stage) AddJob(job *Job) *Stage {
 }
 
 func (s *Stage) Perform(ctx context.Context) (status Status) {
+	defer logger.SetPrefix(logger.Prefix())
+	logger.SetPrefix(fmt.Sprintf("stage[%s] ", s.Name))
 	os.Setenv("STAGE_NAME", s.Name)
 	status = Success
 	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
 		s.timer.Start()
 		defer func() {
 			s.timer.Elapsed()
-			log.Printf("Stage %s cost %v", s.Name, s.timer.Elapsed())
+			logger.Printf("Stage %s cost %v", s.Name, s.timer.Elapsed())
 		}()
 	}
 
-	log.Printf("Stage %s: %d jobs", s.Name, len(s.Jobs))
+	logger.Printf("Stage %s: %d jobs", s.Name, len(s.Jobs))
 
 	if err := os.Chdir(s.p.Workdir); err != nil {
-		log.Printf("change workdir to %s failed: %v", s.p.Workdir, err)
+		logger.Printf("change workdir to %s failed: %v", s.p.Workdir, err)
 		return Failed
 	}
 
 	defer func() {
 		statistics := fmt.Sprintf("(%d failed/%d total)", s.failedCnt, len(s.Jobs))
 		if status == Failed {
-			log.Printf("Stage %s failed %s", s.Name, statistics)
+			logger.Printf("Stage %s failed %s", s.Name, statistics)
 		} else {
-			log.Printf("Stage %s success %s", s.Name, statistics)
+			logger.Printf("Stage %s success %s", s.Name, statistics)
 		}
 	}()
 
