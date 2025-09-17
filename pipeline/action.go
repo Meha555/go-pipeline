@@ -17,30 +17,22 @@ import (
 type Action struct {
 	Cmd    string
 	Args   []string
-	valid  bool
+	busy   bool
 	stdout io.ReadCloser
 	stderr io.ReadCloser
 }
 
-var (
-	ErrActionInvalid = fmt.Errorf("action is invalid because is has been executed")
-)
+var ErrActionBusy = fmt.Errorf("action is busy because is has not finished")
 
 func NewAction(cmd string, args ...string) *Action {
 	return &Action{
-		Cmd:   cmd,
-		Args:  args,
-		valid: true,
+		Cmd:  cmd,
+		Args: args,
+		busy: false,
 	}
 }
 
 func (a *Action) prepare(ctx context.Context) *exec.Cmd {
-	defer func() {
-		a.valid = false
-	}()
-	if !a.valid {
-		return nil
-	}
 	cmd := exec.CommandContext(ctx, a.Cmd, a.Args...)
 	// a.stdout, _ = cmd.StdoutPipe()
 	// a.stderr, _ = cmd.StderrPipe()
@@ -50,10 +42,13 @@ func (a *Action) prepare(ctx context.Context) *exec.Cmd {
 // Exec 阻塞地执行动作
 func (a *Action) Exec(ctx context.Context) (err error) {
 	cmd := a.prepare(ctx)
-	if cmd == nil {
-		err = ErrActionInvalid
-		return
+	if a.busy {
+		return ErrActionBusy
 	}
+	defer func() {
+		a.busy = false
+	}()
+	a.busy = true
 	if noSilence, ok := ctx.Value(internal.NoSilenceKey).(bool); ok && noSilence {
 		log.Printf("exec action: %s", a.String())
 	}
