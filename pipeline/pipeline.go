@@ -85,8 +85,10 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	}()
 	// 初始化内置环境变量
 	setupBuiltins(p)
+	// 初始化定制环境变量
 	for key, value := range p.Envs {
-		if err := os.Setenv(key, value); err != nil {
+		// 保险起见，继续处理value中可能存在的'$'进行变量展开
+		if err := os.Setenv(key, os.ExpandEnv(value)); err != nil {
 			log.Printf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err)
 		}
 	}

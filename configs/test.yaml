@@ -3,6 +3,10 @@ version: "1.0.0"
 
 envs:
   - "HELLO=world"
+  - GOROOT=D:\Go\go:$GOROOT
+  - "PING=PONG"
+  - "PING=abc:$PING"
+  - "PING=$PING:edf"
 
 workdir: "D:\\"
 
@@ -33,6 +37,8 @@ job1:
   actions:
     - "echo \"job1 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job1, $HELLO"
+    - echo "I am job1, $GOROOT"
+    - echo "I am job1, $PING"
     - echo "I am in build stage"
     - sleep 5
     - echo "I am job1, slept for 5s"
