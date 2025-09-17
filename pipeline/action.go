@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/Meha555/go-pipeline/internal"
 )
@@ -55,11 +56,14 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 		logger.Println(a.String())
 		return
 	}
+	// 由于scanner.Scan()可能在cmd.Wait()关闭管道写端后继续读取而导致报错"file already closed"。这点在cmd.StdoutPipe()的文档中有说明。这里显式等待输出完成后再等待命令执行完成。
+	wg := &sync.WaitGroup{}
 	if verbose, ok := ctx.Value(internal.VerboseKey).(bool); ok && verbose {
 		a.stdout, _ = cmd.StdoutPipe()
 		a.stderr, _ = cmd.StderrPipe()
-		go readOutput(a.stdout, os.Stdout)
-		go readOutput(a.stderr, os.Stderr)
+		wg.Add(2)
+		go readOutput(wg, a.stdout, os.Stdout)
+		go readOutput(wg, a.stderr, os.Stderr)
 		// } else {
 		// 	// 即使不显示输出，也要读取并丢弃输出，防止管道写端阻塞而导致当前goroutine卡死
 		// 	go readOutput(a.stdout, io.Discard)
@@ -68,6 +72,7 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 
 	err = cmd.Start()
 	if err == nil {
+		wg.Wait()
 		err = cmd.Wait()
 	}
 	return
@@ -77,14 +82,14 @@ func (a *Action) String() string {
 	return fmt.Sprintf("%s %s", a.Cmd, strings.Join(a.Args, " "))
 }
 
-func readOutput(reader io.Reader, out io.Writer) {
+func readOutput(wg *sync.WaitGroup, reader io.Reader, out io.Writer) {
+	defer wg.Done()
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		io.WriteString(out, scanner.Text())
 		io.WriteString(out, "\n")
 	}
-	if err := scanner.Err(); err != nil {
-		// 由于scanner.Scan()可能在cmd.Wait()关闭管道写端后继续读取，所以这里可能报错"file already closed"，不用在意
+	if err := scanner.Err(); err != nil { // 说明不是io.EOF
 		logger.Printf("read output error: %v", err)
 	}
 }
