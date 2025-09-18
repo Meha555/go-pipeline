@@ -22,12 +22,14 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		if parts := strings.SplitN(envLine, "=", 2); len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
 			value := strings.TrimSpace(parts[1])
-			envs[key] = os.Expand(value, func(v string) string {
-				if val := os.Getenv(v); val != "" {
-					return val
-				}
-				return envs[v]
-			})
+			// envs[key] = os.Expand(value, func(v string) string {
+			// 	if val := os.Getenv(v); val != "" {
+			// 		return val
+			// 	}
+			// 	return envs[v]
+			// })
+			// 注意此时value中可能包含$变量以及命令需要执行，需要在后续展开。选择在后续展开是因为builtin环境变量的初始化在后面
+			envs[key] = value
 		} else {
 			logger.Printf("invalid env format: %s (expected key=value)", envLine)
 		}

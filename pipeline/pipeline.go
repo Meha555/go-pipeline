@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Meha555/go-pipeline/internal"
 )
@@ -88,8 +89,25 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	setupBuiltins(p)
 	// 初始化定制环境变量
 	for key, value := range p.Envs {
-		// 保险起见，继续处理value中可能存在的'$'进行变量展开
-		if err := os.Setenv(key, os.ExpandEnv(value)); err != nil {
+		// 继续处理value中可能存在的'$'进行变量展开，以及命令的执行
+		// 1. 先执行命令
+		cmds := findInlineCmd(value)
+		for _, cmd := range cmds {
+			output, err := cmd.cmd.CombinedOutput()
+			if err != nil {
+				logger.Printf("failed to expr %s: %v", cmd.cmd.String(), err)
+				continue
+			}
+			// 替换value中cmd.startPos到cmd.endPos的内容为命令的输出
+			value = value[:cmd.startPos] + strings.TrimSuffix(string(output), "\n") + value[cmd.endPos+1:]
+		}
+		// 2. 再执行展开
+		if err := os.Setenv(key, os.Expand(value, func(v string) string {
+			if val := os.Getenv(v); val != "" {
+				return val
+			}
+			return p.Envs[v]
+		})); err != nil {
 			logger.Printf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err)
 		}
 	}

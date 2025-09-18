@@ -7,6 +7,10 @@ envs:
   - "PING=PONG"
   - "PING=abc:$PING"
   - "PING=$PING:edf"
+  - "MY_PWD=`pwd`"
+  - "MY_TIMESTAMP=$(date +%s)"
+  - "GET_PIPELINE_TIMESTAMP=$PIPELINE_TIMESTAMP"
+  - "MY_INLINE_CMD=an apple a day,$(date +%s),keeps the `echo -n \"doctor\"` away"
 
 workdir: "D:\\"
 
@@ -31,6 +35,11 @@ debug_job:
     - "echo \"builtin PIPELINE_WORKDIR: $PIPELINE_WORKDIR\""
     - "echo \"builtin STAGE_NAME: $STAGE_NAME\""
     - "echo \"builtin JOB_NAME: $JOB_NAME\""
+    - "echo \"builtin MY_PWD: $MY_PWD\""
+    - "echo \"builtin MY_TIMESTAMP: $MY_TIMESTAMP\""
+    - "echo \"builtin GET_PIPELINE_TIMESTAMP: $GET_PIPELINE_TIMESTAMP\""
+    - "echo \"builtin MY_INLINE_CMD: $MY_INLINE_CMD\""
+    - exit 1
 
 job1:
   stage: build

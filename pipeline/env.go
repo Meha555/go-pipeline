@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"fmt"
+	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -80,4 +82,88 @@ func setupBuiltins(p *Pipeline) {
 	for _, env := range Builtins {
 		p.Envs[env.Name] = env.Value
 	}
+}
+
+type inlineCmd struct {
+	cmd      *exec.Cmd
+	startPos int // 包括`或者$(的起始位置
+	endPos   int // 包括`或者)的结束位置
+}
+
+// findInlineCmdImplBackQuote 查找内联命令`cmd`
+// offset 表示当前查找的起始位置下标
+// str 表示当前查找的字符串
+// cmd 表示找到的内联命令
+// nextPos 表示下一次应该查找的起始位置下标
+func findInlineCmdImplBackQuote(offset int, str string) (cmd *inlineCmd, nextPos int) {
+	lenValue := len(str)
+	leftBracketPos, rightBracketPos := -1, -1
+	if lenValue < 3 {
+		return nil, lenValue + offset
+	}
+	leftBracketPos = strings.IndexByte(str[offset:], '`')
+	if leftBracketPos != -1 {
+		rightBracketPos = strings.IndexByte(str[offset+leftBracketPos+1:], '`')
+		if rightBracketPos != -1 {
+			rightBracketPos += leftBracketPos + 1
+			cmdLine := str[offset+leftBracketPos+1 : rightBracketPos]
+			// found a cmd
+			if len(cmdLine) > 0 {
+				return &inlineCmd{
+					cmd:      exec.Command("sh", "-c", cmdLine),
+					startPos: leftBracketPos + offset,
+					endPos:   rightBracketPos + offset,
+				}, rightBracketPos + offset
+			}
+		}
+	}
+	return nil, lenValue + offset + 1
+}
+
+// findInlineCmdImplDollar 查找内联命令$(cmd)
+// offset 表示当前查找的起始位置下标
+// str 表示当前查找的字符串
+// cmd 表示找到的内联命令
+// nextPos 表示下一次应该查找的起始位置下标
+func findInlineCmdImplDollar(offset int, str string) (cmd *inlineCmd, nextPos int) {
+	lenValue := len(str)
+	leftBracketPos, rightBracketPos := -1, -1
+	if lenValue < 4 {
+		return nil, lenValue + offset + 1
+	}
+	dollarPos := strings.IndexByte(str[offset:], '$')
+	if dollarPos != -1 && dollarPos < lenValue-2 && str[offset+dollarPos+1] == '(' {
+		leftBracketPos = dollarPos + 1
+		rightBracketPos = strings.IndexByte(str[offset+leftBracketPos+1:], ')')
+		if rightBracketPos != -1 {
+			rightBracketPos += leftBracketPos + 1
+			cmdLine := str[offset+leftBracketPos+1 : rightBracketPos]
+			// found a cmd
+			if len(cmdLine) > 0 {
+				return &inlineCmd{
+					cmd:      exec.Command("sh", "-c", cmdLine),
+					startPos: dollarPos + offset,
+					endPos:   rightBracketPos + offset,
+				}, rightBracketPos + offset
+			}
+		}
+	}
+	return nil, lenValue + offset + 1
+}
+
+func findInlineCmd(str string) []*inlineCmd {
+	var cmds []*inlineCmd
+	lenValue := len(str)
+	finder := func(f func(offset int, str string) (cmd *inlineCmd, nextPos int)) {
+		for i := 0; i < lenValue; i++ {
+			cmd, nextPos := f(i, str)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			i = nextPos
+		}
+	}
+	finder(findInlineCmdImplBackQuote)
+	finder(findInlineCmdImplDollar)
+	return cmds
 }
