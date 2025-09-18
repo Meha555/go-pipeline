@@ -17,7 +17,7 @@ func isSkipped(config *parser.PipelineConf, item string) bool {
 // MakePipeline 根据配置信息创建流水线
 func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	// 处理环境变量
-	envs := make(map[string]string)
+	var envs EnvList
 	for _, envLine := range config.Envs {
 		if parts := strings.SplitN(envLine, "=", 2); len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
@@ -29,7 +29,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			// 	return envs[v]
 			// })
 			// 注意此时value中可能包含$变量以及命令需要执行，需要在后续展开。选择在后续展开是因为builtin环境变量的初始化在后面
-			envs[key] = value
+			envs.Append(key, value)
 		} else {
 			logger.Printf("invalid env format: %s (expected key=value)", envLine)
 		}

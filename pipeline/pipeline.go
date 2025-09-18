@@ -7,13 +7,16 @@ import (
 	"strings"
 
 	"github.com/Meha555/go-pipeline/internal"
+	"github.com/Meha555/go-pipeline/parser"
 )
+
+type EnvList = parser.DictList[string, string]
 
 // Pipeline 定义流水线结构体
 type Pipeline struct {
 	Name    string
 	Version string
-	Envs    map[string]string
+	Envs    EnvList // 为了确保环境变量初始化时按照conf.Envs中切片中的顺序，这里不能采用map
 	Workdir string
 	Stages  []*Stage
 
@@ -23,7 +26,7 @@ type Pipeline struct {
 
 type PipelineOptions func(*Pipeline)
 
-func WithEnvs(envs map[string]string) PipelineOptions {
+func WithEnvs(envs EnvList) PipelineOptions {
 	return func(p *Pipeline) {
 		p.Envs = envs
 	}
@@ -39,7 +42,7 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 	p := &Pipeline{
 		Name:    name,
 		Version: version,
-		Envs:    map[string]string{},
+		Envs:    EnvList{},
 		Stages:  []*Stage{},
 		timer:   &internal.Timer{},
 	}
@@ -88,7 +91,9 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	// 初始化内置环境变量
 	setupBuiltins(p)
 	// 初始化定制环境变量
-	for key, value := range p.Envs {
+	for i := range p.Envs {
+		key := p.Envs[i].Key
+		value := p.Envs[i].Value
 		// 继续处理value中可能存在的'$'进行变量展开，以及命令的执行
 		// 1. 先执行命令
 		cmds := findInlineCmd(value)
@@ -106,7 +111,10 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			if val := os.Getenv(v); val != "" {
 				return val
 			}
-			return p.Envs[v]
+			if val, ok := p.Envs.Find(v); ok {
+				return val
+			}
+			return ""
 		})); err != nil {
 			logger.Printf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err)
 		}

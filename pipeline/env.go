@@ -80,7 +80,7 @@ func setupBuiltins(p *Pipeline) {
 		},
 	}
 	for _, env := range Builtins {
-		p.Envs[env.Name] = env.Value
+		p.Envs.Append(env.Name, env.Value)
 	}
 }
 
