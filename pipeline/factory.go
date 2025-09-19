@@ -66,12 +66,15 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			continue
 		}
 
-		// 创建任务并添加到阶段
-		var actions []*Action
-		for _, actionLine := range jobDef.Actions {
-			actions = append(actions, NewAction("sh", "-c", actionLine))
+		// 创建Job并添加到Stage
+		// 1. 创建Actions并添加到Job
+		actions := makeActions(jobDef.Actions)
+		// 2. 创建Hooks并添加到Job
+		hooks := &Hooks{
+			Before: makeActions(jobDef.Hooks.Before),
+			After:  makeActions(jobDef.Hooks.After),
 		}
-		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure))
+		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
 		if jobTimeout, err := parser.ParseDuration(jobDef.Timeout); err != nil {
 			if !errors.Is(err, parser.ErrTimeoutIsEmpty) {
 				logger.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
@@ -83,6 +86,13 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	}
 
 	return pipeObj
+}
+
+func makeActions(actionLines []string) (actions []*Action) {
+	for _, actionLine := range actionLines {
+		actions = append(actions, NewAction("sh", "-c", actionLine))
+	}
+	return
 }
 
 var logger = log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)

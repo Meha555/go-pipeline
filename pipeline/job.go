@@ -33,9 +33,12 @@ func (s Status) Error() string {
 	}
 }
 
+// Job 组织一个可以并发执行的任务
+// 因此Job的执行可以认为是没有顺序的概念的，如果需要顺序执行两个Job，则应该让这两个Job分别位于两个Stage中
 type Job struct {
 	Name         string
 	Actions      []*Action
+	Hooks        *Hooks
 	Timeout      time.Duration
 	AllowFailure bool
 	resCh        chan Status
@@ -58,10 +61,17 @@ func WithAllowFailure(allowFailure bool) JobOptions {
 	}
 }
 
+func WithHooks(hooks *Hooks) JobOptions {
+	return func(j *Job) {
+		j.Hooks = hooks
+	}
+}
+
 func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 	j := &Job{
 		Name:         name,
 		Actions:      actions,
+		Hooks:        &Hooks{},
 		resCh:        make(chan Status),
 		Timeout:      time.Duration(math.MaxInt64),
 		AllowFailure: false,
@@ -106,6 +116,20 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 		ctx, cancel = context.WithTimeout(ctx, j.Timeout)
 		defer cancel()
 	}
+
+	if len(j.Hooks.Before) > 0 {
+		if err := j.Hooks.DoBefore(ctx); err != nil {
+			logger.Printf("hooks before failed: %v", err)
+		}
+	}
+	defer func() {
+		if len(j.Hooks.After) > 0 {
+			if err := j.Hooks.DoAfter(ctx); err != nil {
+				logger.Printf("hooks after failed: %v", err)
+			}
+		}
+	}()
+
 	for _, action := range j.Actions {
 		// 要求Exec是阻塞的
 		if err := action.Exec(ctx); err != nil {

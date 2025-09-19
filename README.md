@@ -53,6 +53,7 @@ version: "1.0.0"
 
 envs:
   - CMAKE_GENERATOR=Ninja
+  - MOTTO="An apple a day $(date +%Y-%m-%d), keeps the `echo 'doctor'` away"
 
 workdir: "D:\\Codes\\C++\\myproject"
 
@@ -68,12 +69,21 @@ skips:
 build_job:
   stage: build
   actions:
+    - echo "$STAGE_NAME - $JOB_NAME"
     - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
     - cmake --build build -j8
+  hooks:
+    before:
+      - echo "Before build"
+      - "echo \"MOTTO: $MOTTO\""
+    after:
+      - echo "After build"
+      - "echo \"build dir: $(pwd)/build\""
 
 test_job:
   stage: test
   actions:
+    - echo "$STAGE_NAME - $JOB_NAME"
     - ctest --test-dir build
   timeout: 5m
   allow_failure: yes
@@ -81,6 +91,7 @@ test_job:
 cleanup_job:
   stage: cleanup
   actions:
+    - echo "$STAGE_NAME - $JOB_NAME"
     - rm -rf build
   allow_failure: yes
 ```

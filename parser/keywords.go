@@ -17,6 +17,9 @@ const (
 	keywordTimeout      = "timeout"
 	keywordAllowFailure = "allow_failure"
 	keywordSkips        = "skips"
+	keywordHooks        = "hooks"
+	keywordHookBefore   = "before"
+	keywordHookAfter    = "after"
 )
 
 var keywordMap = []string{
@@ -31,6 +34,9 @@ var keywordMap = []string{
 	keywordTimeout,
 	keywordAllowFailure,
 	keywordSkips,
+	keywordHooks,
+	keywordHookBefore,
+	keywordHookAfter,
 }
 
 func IsKeyword(token string) bool {

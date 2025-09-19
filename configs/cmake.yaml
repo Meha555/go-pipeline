@@ -26,6 +26,16 @@ build_job:
     - pwd
     - cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja -DBUILD_TESTS=ON
     - cmake --build build -j8
+  hooks:
+    before:
+      - "echo \"[HOOK] before STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
+      - exit 1
+      - "echo \"[HOOK] before exit 1, STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
+    after:
+      - "echo \"[HOOK] after STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
+      - "echo \"[HOOK] build dir: $(pwd)/build\""
+      - "exit 1"
+      - "echo \"[HOOK] after exit 1, STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
 
 test_job:
   stage: test

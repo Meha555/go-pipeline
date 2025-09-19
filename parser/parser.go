@@ -19,15 +19,22 @@ type PipelineConf struct {
 	Envs    []string           `yaml:"envs,omitempty"`
 	Workdir string             `yaml:"workdir,omitempty"`
 	Stages  []string           `yaml:"stages"`
-	Jobs    map[string]jobConf `yaml:",inline"`
 	Skips   []string           `yaml:"skips,omitempty"`
+	// NOTE gopkg.in/yaml.v3 库中，结构体字段的声明顺序会影响解析优先级。如果 inline 字段（Jobs）在结构体中声明的位置早于其他关键字段（如 Stages/Skips），可能导致部分嵌套字段被意外忽略。
+	Jobs    map[string]jobConf `yaml:",inline"`
 }
 
 type jobConf struct {
-	Stage        string   `yaml:"stage"`
-	Actions      []string `yaml:"actions"`
-	Timeout      string   `yaml:"timeout,omitempty"`
-	AllowFailure bool     `yaml:"allow_failure,omitempty"`
+	Stage        string    `yaml:"stage"`
+	Actions      []string  `yaml:"actions"`
+	Timeout      string    `yaml:"timeout,omitempty"`
+	AllowFailure bool      `yaml:"allow_failure,omitempty"`
+	Hooks        hooksConf `yaml:"hooks,omitempty"`
+}
+
+type hooksConf struct {
+	Before []string `yaml:"before,omitempty"`
+	After  []string `yaml:"after,omitempty"`
 }
 
 // ParseConfigFile 解析 YAML 配置文件
