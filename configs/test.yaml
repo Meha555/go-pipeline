@@ -57,7 +57,9 @@ job1:
 job2:
   stage: test
   actions:
-    - "echo \"job2 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
+    - |
+      echo "job2 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME" # 如果不使用下面的引号转义，就需要使用块标量语法，否则这里的冒号会导致解析错误
+    # - "echo \"job2 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job2, $HELLO"
     - echo "I am in test stage"
     - "echo \"kv whoami: $USER\""
