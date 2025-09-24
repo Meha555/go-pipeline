@@ -95,4 +95,12 @@ func makeActions(actionLines []string) (actions []*Action) {
 	return
 }
 
-var logger = log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
+var logger *log.Logger
+
+func init() {
+	var logFlags int
+	if os.Getenv("PIPELINE_LOG_TIMESTAMP") == "1" {
+		logFlags |= log.LstdFlags | log.Lmicroseconds
+	}
+	logger = log.New(os.Stderr, "", logFlags)
+}

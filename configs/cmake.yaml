@@ -6,6 +6,7 @@ version: "1.0.0"
 # 整个pipeline的环境变量
 envs:
   - CMAKE_TOOLCHAIN_FILE=F:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake # 路径在windows上必须转义，因此如果要括起来的话，必须用双引号
+  - VERSION_TAG=$(git tag --sort=-v:refname | head -n 1)
 
 # 整个pipeline的工作目录
 workdir: "F:\\repos\\personal\\playground\\cmake_learn"
@@ -28,6 +29,7 @@ build_job:
     - cmake --build build -j8
   hooks:
     before:
+      - echo $VERSION_TAG
       - "echo \"[HOOK] before STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
       - exit 1
       - "echo \"[HOOK] before exit 1, STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
