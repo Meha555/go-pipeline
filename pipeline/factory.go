@@ -36,7 +36,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	}
 
 	// 创建流水线
-	pipeObj := NewPipeline(config.Name, config.Version, WithEnvs(envs), WithWorkdir(config.Workdir))
+	pipeObj := NewPipeline(config.Name, config.Version, config.Shell, WithEnvs(envs), WithWorkdir(config.Workdir))
 
 	// 为每个阶段创建 Stage 对象
 	stageMap := make(map[string]*Stage)
@@ -68,11 +68,11 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 
 		// 创建Job并添加到Stage
 		// 1. 创建Actions并添加到Job
-		actions := makeActions(jobDef.Actions)
+		actions := makeActions(pipeObj.Shell, jobDef.Actions)
 		// 2. 创建Hooks并添加到Job
 		hooks := &Hooks{
-			Before: makeActions(jobDef.Hooks.Before),
-			After:  makeActions(jobDef.Hooks.After),
+			Before: makeActions(pipeObj.Shell, jobDef.Hooks.Before),
+			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
 		}
 		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
 		if jobTimeout, err := parser.ParseDuration(jobDef.Timeout); err != nil {
@@ -88,9 +88,10 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	return pipeObj
 }
 
-func makeActions(actionLines []string) (actions []*Action) {
+func makeActions(shell string, actionLines []string) (actions []*Action) {
+	shellCmd, shellFlag := getShell(shell)
 	for _, actionLine := range actionLines {
-		actions = append(actions, NewAction("sh", "-c", actionLine))
+		actions = append(actions, NewAction(shellCmd, shellFlag, actionLine))
 	}
 	return
 }

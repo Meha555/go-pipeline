@@ -10,23 +10,25 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v3"
 )
 
 type PipelineConf struct {
-	Name    string             `yaml:"name"`
-	Version string             `yaml:"version"`
-	Envs    []string           `yaml:"envs,omitempty"`
-	Workdir string             `yaml:"workdir,omitempty"`
-	Stages  []string           `yaml:"stages"`
-	Skips   []string           `yaml:"skips,omitempty"`
+	Name    string   `yaml:"name" validate:"required"`
+	Version string   `yaml:"version" validate:"required"`
+	Shell   string   `yaml:"shell" validate:"required"`
+	Envs    []string `yaml:"envs,omitempty"`
+	Workdir string   `yaml:"workdir,omitempty"`
+	Stages  []string `yaml:"stages" validate:"required"`
+	Skips   []string `yaml:"skips,omitempty"`
 	// NOTE gopkg.in/yaml.v3 库中，结构体字段的声明顺序会影响解析优先级。如果 inline 字段（Jobs）在结构体中声明的位置早于其他关键字段（如 Stages/Skips），可能导致部分嵌套字段被意外忽略。
-	Jobs    map[string]jobConf `yaml:",inline"`
+	Jobs map[string]jobConf `yaml:",inline" validate:"dive"`
 }
 
 type jobConf struct {
-	Stage        string    `yaml:"stage"`
-	Actions      []string  `yaml:"actions"`
+	Stage        string    `yaml:"stage" validate:"required"`
+	Actions      []string  `yaml:"actions" validate:"required"`
 	Timeout      string    `yaml:"timeout,omitempty"`
 	AllowFailure bool      `yaml:"allow_failure,omitempty"`
 	Hooks        hooksConf `yaml:"hooks,omitempty"`
@@ -55,6 +57,16 @@ func ParseConfigFile(configPath string) (*PipelineConf, error) {
 	if err := yaml.Unmarshal(content, config); err != nil {
 		return nil, fmt.Errorf("unmarshal config failed: %w", err)
 	}
+	// 校验配置信息
+	if err := validate.Struct(config); err != nil {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			for _, e := range validationErrors {
+				// 这里只返回第一个校验错误
+				return nil, fmt.Errorf("validate config failed: %w, (field: %s, tag: %s)", e, e.Field(), e.Tag())
+			}
+		}
+	}
 
 	return config, nil
 }
@@ -73,7 +85,7 @@ func ParseDuration(duration string) (time.Duration, error) {
 	}
 
 	unitIndex := -1
-	for i := 0; i < len(duration); i++ {
+	for i := range duration {
 		if duration[i] < '0' || duration[i] > '9' {
 			unitIndex = i
 			break
@@ -126,3 +138,5 @@ func ParseArgs(args []string, ctx context.Context) {
 		}
 	}
 }
+
+var validate = validator.New()

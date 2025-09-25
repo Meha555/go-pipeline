@@ -1,0 +1,15 @@
+name: "node-pipeline-linux"
+version: "1.0.0"
+shell: "bash"
+
+envs:
+  - NODE_PATH=/mnt/d/Program Files/Huawei/DevEco Studio/tools/node/node.exe
+
+stages:
+  - debug
+
+debug_job:
+  stage: debug
+  actions:
+    - echo $NODE_PATH
+    - "\"$NODE_PATH\" --version"

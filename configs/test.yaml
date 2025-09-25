@@ -1,5 +1,6 @@
 name: "test-pipeline"
 version: "1.0.0"
+shell: "sh"
 
 envs:
   - "HELLO=world"

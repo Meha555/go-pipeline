@@ -79,7 +79,7 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 }
 
 func (a *Action) String() string {
-	return fmt.Sprintf("%s %s", a.Cmd, strings.Join(a.Args, " "))
+	return fmt.Sprintf("%s %s", a.Cmd, strings.Join(a.Args, ", "))
 }
 
 func readOutput(wg *sync.WaitGroup, reader io.Reader, out io.Writer) {

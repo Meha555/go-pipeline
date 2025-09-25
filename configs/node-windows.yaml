@@ -1,0 +1,29 @@
+name: "node-pipeline-windows"
+version: "1.0.0"
+
+stages:
+  - debug
+
+# 使用cmd的版本
+# shell: "cmd"
+
+# envs:
+#   - NODE_PATH="D:\\Program Files\\Huawei\\DevEco Studio\\tools\\node\\node.exe"
+
+# debug_job:
+#   stage: debug
+#   actions:
+#     - echo %NODE_PATH%
+#     - "%NODE_PATH% --version"
+
+# 使用sh的版本
+shell: "sh"
+
+envs:
+  - NODE_PATH=/d/Program Files/Huawei/DevEco Studio/tools/node/node.exe
+
+debug_job:
+  stage: debug
+  actions:
+    - echo $NODE_PATH
+    - "\"$NODE_PATH\" --version"

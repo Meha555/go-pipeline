@@ -6,6 +6,8 @@ import "slices"
 const (
 	keywordName    = "name"
 	keywordVersion = "version"
+	keywordShell   = "shell"
+
 	keywordEnvs    = "envs"
 	keywordWorkdir = "workdir"
 
@@ -25,6 +27,7 @@ const (
 var keywordMap = []string{
 	keywordName,
 	keywordVersion,
+	keywordShell,
 	keywordEnvs,
 	keywordWorkdir,
 	keywordStages,

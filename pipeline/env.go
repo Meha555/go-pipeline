@@ -29,6 +29,10 @@ var Builtins = []*Env{
 		Description: "Current Pipeline version",
 	},
 	{
+		Name:        "PIPELINE_SHELL",
+		Description: "Current Pipeline shell",
+	},
+	{
 		Name:        "PIPELINE_TIMESTAMP",
 		Description: "Current Pipeline starting timestamp in format 'YYYYMMDDHHMMSS'",
 	},
@@ -57,6 +61,11 @@ func setupBuiltins(p *Pipeline) {
 			Name:        "PIPELINE_VERSION",
 			Value:       p.Version,
 			Description: "Current Pipeline version",
+		},
+		{
+			Name:        "PIPELINE_SHELL",
+			Value:       p.Shell,
+			Description: "Current Pipeline shell",
 		},
 		{
 			Name:        "PIPELINE_TIMESTAMP",
@@ -95,7 +104,7 @@ type inlineCmd struct {
 // str 表示当前查找的字符串
 // cmd 表示找到的内联命令
 // nextPos 表示下一次应该查找的起始位置下标
-func findInlineCmdImplBackQuote(offset int, str string) (cmd *inlineCmd, nextPos int) {
+func findInlineCmdImplBackQuote(offset int, str, shell string) (cmd *inlineCmd, nextPos int) {
 	lenValue := len(str)
 	leftBracketPos, rightBracketPos := -1, -1
 	if lenValue < 3 {
@@ -109,8 +118,9 @@ func findInlineCmdImplBackQuote(offset int, str string) (cmd *inlineCmd, nextPos
 			cmdLine := str[offset+leftBracketPos+1 : rightBracketPos]
 			// found a cmd
 			if len(cmdLine) > 0 {
+				shellCmd, shellFlag := getShell(shell)
 				return &inlineCmd{
-					cmd:      exec.Command("sh", "-c", cmdLine),
+					cmd:      exec.Command(shellCmd, shellFlag, cmdLine),
 					startPos: leftBracketPos + offset,
 					endPos:   rightBracketPos + offset,
 				}, rightBracketPos + offset
@@ -125,7 +135,7 @@ func findInlineCmdImplBackQuote(offset int, str string) (cmd *inlineCmd, nextPos
 // str 表示当前查找的字符串
 // cmd 表示找到的内联命令
 // nextPos 表示下一次应该查找的起始位置下标
-func findInlineCmdImplDollar(offset int, str string) (cmd *inlineCmd, nextPos int) {
+func findInlineCmdImplDollar(offset int, str, shell string) (cmd *inlineCmd, nextPos int) {
 	lenValue := len(str)
 	leftBracketPos, rightBracketPos := -1, -1
 	if lenValue < 4 {
@@ -140,8 +150,9 @@ func findInlineCmdImplDollar(offset int, str string) (cmd *inlineCmd, nextPos in
 			cmdLine := str[offset+leftBracketPos+1 : rightBracketPos]
 			// found a cmd
 			if len(cmdLine) > 0 {
+				shellCmd, shellFlag := getShell(shell)
 				return &inlineCmd{
-					cmd:      exec.Command("sh", "-c", cmdLine),
+					cmd:      exec.Command(shellCmd, shellFlag, cmdLine),
 					startPos: dollarPos + offset,
 					endPos:   rightBracketPos + offset,
 				}, rightBracketPos + offset
@@ -151,12 +162,12 @@ func findInlineCmdImplDollar(offset int, str string) (cmd *inlineCmd, nextPos in
 	return nil, lenValue + offset + 1
 }
 
-func findInlineCmd(str string) []*inlineCmd {
+func findInlineCmd(str, shell string) []*inlineCmd {
 	var cmds []*inlineCmd
 	lenValue := len(str)
-	finder := func(f func(offset int, str string) (cmd *inlineCmd, nextPos int)) {
+	finder := func(f func(offset int, str, shell string) (cmd *inlineCmd, nextPos int)) {
 		for i := 0; i < lenValue; i++ {
-			cmd, nextPos := f(i, str)
+			cmd, nextPos := f(i, str, shell)
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}

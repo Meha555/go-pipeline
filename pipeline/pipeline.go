@@ -16,6 +16,7 @@ type EnvList = parser.DictList[string, string]
 type Pipeline struct {
 	Name    string
 	Version string
+	Shell   string
 	Envs    EnvList // 为了确保环境变量初始化时按照conf.Envs中切片中的顺序，这里不能采用map
 	Workdir string
 	Stages  []*Stage
@@ -38,10 +39,11 @@ func WithWorkdir(workdir string) PipelineOptions {
 	}
 }
 
-func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
+func NewPipeline(name, version, shell string, opts ...PipelineOptions) *Pipeline {
 	p := &Pipeline{
 		Name:    name,
 		Version: version,
+		Shell:   shell,
 		Envs:    EnvList{},
 		Stages:  []*Stage{},
 		timer:   &internal.Timer{},
@@ -98,7 +100,7 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			value := p.Envs[i].Value
 			// 继续处理value中可能存在的'$'进行变量展开，以及命令的执行
 			// 1. 先执行命令
-			cmds := findInlineCmd(value)
+			cmds := findInlineCmd(value, p.Shell)
 			for _, cmd := range cmds {
 				output, err := cmd.cmd.CombinedOutput()
 				if err != nil {
@@ -125,7 +127,7 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	}
 	// 处理workdir
 	{
-		cmds := findInlineCmd(p.Workdir)
+		cmds := findInlineCmd(p.Workdir, p.Shell)
 		for _, cmd := range cmds {
 			output, err := cmd.cmd.CombinedOutput()
 			if err != nil {
@@ -166,6 +168,18 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			return
 		}
 		p.succeedCnt++
+	}
+	return
+}
+
+func getShell(shell string) (cmd, flag string) {
+	switch shell {
+	case "bash":
+		cmd, flag = "bash", "-c"
+	case "sh":
+		cmd, flag = "sh", "-c"
+	case "cmd":
+		cmd, flag = "cmd", "/c"
 	}
 	return
 }
