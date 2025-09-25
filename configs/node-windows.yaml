@@ -21,9 +21,11 @@ shell: "sh"
 
 envs:
   - NODE_PATH=/d/Program Files/Huawei/DevEco Studio/tools/node/node.exe
+  - HVIGORW_PATH=
 
 debug_job:
   stage: debug
   actions:
     - echo $NODE_PATH
-    - "\"$NODE_PATH\" --version"
+    # - "\"$NODE_PATH\" --version"
+    -

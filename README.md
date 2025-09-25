@@ -1,5 +1,7 @@
 # Go-Pipeline
 
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/Meha555/go-pipeline?tab=doc)
+
 A lightweight, flexible, and powerful pipeline/workflow execution engine written in Go. This tool allows you to define and execute complex build, test, and deployment workflows using simple YAML configuration files.
 
 ## Features
@@ -50,6 +52,7 @@ Create a file named `pipeline.yaml`:
 ```yaml
 name: "cmake-pipeline"
 version: "1.0.0"
+shell: sh
 
 envs:
   - CMAKE_GENERATOR=Ninja
@@ -85,6 +88,17 @@ test_job:
   actions:
     - echo "$STAGE_NAME - $JOB_NAME"
     - ctest --test-dir build
+    - | # 多行命令，可用于让cd和设置变量之类在“多条指令（单个action）”中生效
+      echo "large script"
+      cwd=`pwd`
+      pwd
+      echo "line 1, cd to $HOME"
+      cd $HOME
+      pwd
+      echo "line 2, cd to $cwd"
+      cd -
+      pwd
+      echo "line 3"
   timeout: 5m
   allow_failure: yes
 

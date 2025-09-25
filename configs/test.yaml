@@ -23,6 +23,7 @@ stages:
   # - test
 
 skips: # 可以是stage或job
+  - debug
   # - test
   - job5
   - job6
@@ -50,6 +51,17 @@ job1:
     - echo "I am job1, $GOROOT"
     - echo "I am job1, $PING"
     - echo "I am in build stage"
+    - |
+      echo "large script"
+      cwd=`pwd`
+      pwd
+      echo "line 1, cd to $HOME"
+      cd $HOME
+      pwd
+      echo "line 2, cd to $cwd"
+      cd -
+      pwd
+      echo "line 3"
     - sleep 5
     - echo "I am job1, slept for 5s"
   timeout: 2s
