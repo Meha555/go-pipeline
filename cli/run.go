@@ -3,8 +3,11 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/mail"
+	"strings"
 
 	"github.com/Meha555/go-pipeline/internal"
+	"github.com/Meha555/go-pipeline/notify/email"
 	"github.com/Meha555/go-pipeline/parser"
 	"github.com/Meha555/go-pipeline/pipeline"
 
@@ -16,9 +19,10 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a pipeline",
 	Long:  "Run a pipeline through a config file",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
+		var conf *parser.PipelineConf
 		// 没有被注册到cobra的参数会被认为是额外参数出现在这里的args中
-		conf, err := parser.ParseConfigFile(configFile)
+		conf, err = parser.ParseConfigFile(configFile)
 		if err != nil {
 			return fmt.Errorf("parsing %s failed: %w", configFile, err)
 		}
@@ -42,10 +46,53 @@ var runCmd = &cobra.Command{
 		}
 
 		status := pipe.Run(ctx)
-		if status == pipeline.Failed {
-			return fmt.Errorf("pipeline %s@%s run failed", pipe.Name, pipe.Version)
+
+		// Notify 结果
+		var eNotifier *email.Sender
+		var ebuilder *email.Builder
+		if conf.Notifiers != nil {
+			if conf.Notifiers.Email != nil {
+				eNotifier = &email.Sender{
+					SmtpServer: conf.Notifiers.Email.Server,
+					SmtpPort:   conf.Notifiers.Email.Port,
+					Password:   conf.Notifiers.Email.From.Password,
+				}
+				toAddrs, err := mail.ParseAddressList(strings.Join(conf.Notifiers.Email.To, ","))
+				if err != nil {
+					return fmt.Errorf("parsing to addresses failed: %w", err)
+				}
+				ccAddrs, err := mail.ParseAddressList(strings.Join(conf.Notifiers.Email.Cc, ","))
+				if err != nil {
+					return fmt.Errorf("parsing cc addresses failed: %w", err)
+				}
+				ebuilder = email.NewBuilder().
+					From(&mail.Address{Name: "go-pipeline", Address: conf.Notifiers.Email.From.Address}).
+					To(toAddrs).
+					Cc(ccAddrs)
+			}
 		}
-		return nil
+
+		if status == pipeline.Failed {
+			err = fmt.Errorf("pipeline %s@%s run failed", pipe.Name, pipe.Version)
+			if conf.Notifiers != nil {
+				if conf.Notifiers.Email != nil {
+					err = eNotifier.Send(ebuilder.
+						Subject("Pipeline Failed").
+						Body([]byte(err.Error())).
+						Build())
+				}
+			}
+		} else {
+			if conf.Notifiers != nil {
+				if conf.Notifiers.Email != nil {
+					err = eNotifier.Send(ebuilder.
+						Subject("Pipeline Success").
+						Body([]byte(fmt.Sprintf("pipeline %s@%s run success", pipe.Name, pipe.Version))).
+						Build())
+				}
+			}
+		}
+		return
 	},
 }
 
