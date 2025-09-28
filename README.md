@@ -43,6 +43,31 @@ After installation, the `go-pipeline` binary will be available in your `$GOPATH/
 
 You can obtain serval runtime information through builtin environment variables. Use `go-pipeline envs` to list all builtin envrionment variables.
 
+## Notifiers
+
+Go-Pipeline supports sending notifications when a pipeline succeeds or fails. You can configure different types of notifiers in your pipeline configuration file.
+
+```yaml
+notifiers:
+  email:
+    server: smtp.example.com
+    port: 587
+    from:
+      address: your-email@example.com
+      password: your-password
+    to:
+      - recipient@example.com
+    cc:
+      - cc-recipient@example.com
+  # Work in Process
+  # bot:
+  #   server: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your-webhook-key"
+  # sms:
+  #   server: "https://sms.api.qq.com/send"
+  #   appid: "your-app-id"
+  #   appkey: "your-app-key"
+```
+
 ## Quick Start
 
 ### 1. Create a Pipeline Configuration

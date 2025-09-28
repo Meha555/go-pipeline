@@ -15,15 +15,24 @@ import (
 )
 
 type PipelineConf struct {
-	Name    string   `yaml:"name" validate:"required"`
-	Version string   `yaml:"version" validate:"required"`
-	Shell   string   `yaml:"shell" validate:"required"`
-	Envs    []string `yaml:"envs,omitempty"`
-	Workdir string   `yaml:"workdir,omitempty"`
-	Stages  []string `yaml:"stages" validate:"required"`
-	Skips   []string `yaml:"skips,omitempty"`
+	Name    string `yaml:"name" validate:"required"`
+	Version string `yaml:"version" validate:"required"`
+	Shell   string `yaml:"shell" validate:"required"`
+	// NOTE 使用指针，这样可以判断是否存在该字段
+	Notifiers *notifiersConf `yaml:"notifiers,omitempty"`
+	Envs      []string       `yaml:"envs,omitempty"`
+	Workdir   string         `yaml:"workdir,omitempty"`
+	Stages    []string       `yaml:"stages" validate:"required"`
+	Skips     []string       `yaml:"skips,omitempty"`
 	// NOTE gopkg.in/yaml.v3 库中，结构体字段的声明顺序会影响解析优先级。如果 inline 字段（Jobs）在结构体中声明的位置早于其他关键字段（如 Stages/Skips），可能导致部分嵌套字段被意外忽略。
 	Jobs map[string]jobConf `yaml:",inline" validate:"dive"`
+}
+
+// notifiersConf 通知器配置
+type notifiersConf struct {
+	Email *emailNotifierConf `yaml:"email,omitempty"`
+	Bot   *botNotifierConf   `yaml:"bot,omitempty"`
+	SMS   *smsNotifierConf   `yaml:"sms,omitempty"`
 }
 
 type jobConf struct {
@@ -37,6 +46,32 @@ type jobConf struct {
 type hooksConf struct {
 	Before []string `yaml:"before,omitempty"`
 	After  []string `yaml:"after,omitempty"`
+}
+
+// emailNotifierConf 邮件通知器配置
+type emailNotifierConf struct {
+	Server string      `yaml:"server" validate:"required,hostname|ip"`
+	Port   int         `yaml:"port" validate:"required,min=1,max=65535"`
+	From   emailPoster `yaml:"from" validate:"required"`
+	To     []string    `yaml:"to" validate:"required,min=1,dive,email"`
+	Cc     []string    `yaml:"cc,omitempty" validate:"dive,email"`
+}
+
+type emailPoster struct {
+	Address  string `yaml:"address" validate:"required,email"`
+	Password string `yaml:"password" validate:"required"`
+}
+
+// botNotifierConf 机器人通知器配置
+type botNotifierConf struct {
+	Server string `yaml:"server" validate:"required,url"`
+}
+
+// smsNotifierConf 短信通知器配置
+type smsNotifierConf struct {
+	Server string `yaml:"server" validate:"required,url"`
+	AppID  string `yaml:"appid" validate:"required"`
+	AppKey string `yaml:"appkey" validate:"required"`
 }
 
 // ParseConfigFile 解析 YAML 配置文件
