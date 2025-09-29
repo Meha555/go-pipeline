@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-// Email 这里不支持附件
+// 考虑到通知模块只会被调用一次，因此这里不支持附件，不支持密送，不支持连接复用，减少二进制体积
+
 type Email struct {
 	from    *mail.Address
 	to      []*mail.Address
@@ -31,25 +32,25 @@ func NewBuilder() *Builder {
 
 func (e *Builder) From(addr *mail.Address) *Builder {
 	e.email.from = addr
-	e.email.b.WriteString(fmt.Sprintf("From: %s\r\n", e.email.from.String()))
+	fmt.Fprintf(&e.email.b, "From: %s\r\n", e.email.from.String())
 	return e
 }
 
-func (e *Builder) To(addr []*mail.Address) *Builder {
+func (e *Builder) To(addr ...*mail.Address) *Builder {
 	e.email.to = addr
-	e.email.b.WriteString(fmt.Sprintf("To: %s\r\n", addr2Str(e.email.to)))
+	fmt.Fprintf(&e.email.b, "To: %s\r\n", addr2Str(e.email.to))
 	return e
 }
 
-func (e *Builder) Cc(addr []*mail.Address) *Builder {
+func (e *Builder) Cc(addr ...*mail.Address) *Builder {
 	e.email.cc = addr
-	e.email.b.WriteString(fmt.Sprintf("Cc: %s\r\n", addr2Str(e.email.cc)))
+	fmt.Fprintf(&e.email.b, "Cc: %s\r\n", addr2Str(e.email.cc))
 	return e
 }
 
 func (e *Builder) Subject(subject string) *Builder {
 	e.email.subject = subject
-	e.email.b.WriteString(fmt.Sprintf("Subject: %s\r\n", e.email.subject))
+	fmt.Fprintf(&e.email.b, "Subject: %s\r\n", e.email.subject)
 	return e
 }
 
@@ -61,7 +62,7 @@ func (e *Builder) Body(body []byte) *Builder {
 func (e *Builder) Build() *Email {
 	e.email.b.WriteString("\r\n")
 	e.email.header = e.email.b.String()
-	e.email.b.Reset()
+	e.email.b.Write(e.email.body)
 	return e.email
 }
 
@@ -70,9 +71,6 @@ func (e *Email) Header() string {
 }
 
 func (e *Email) Message() string {
-	e.b.Reset()
-	e.b.WriteString(e.header)
-	e.b.Write(e.body)
 	return e.b.String()
 }
 
@@ -102,9 +100,9 @@ func (n *Sender) Send(email *Email) error {
 		n.Init()
 	}
 
-	// 这里的必须是不带<>的地址
+	// 这里的必须是不带<>的地址，加了<>的地址会被忽略
 	auth := smtp.PlainAuth("", email.from.Address, n.Password, n.SmtpServer)
-	// 这里的必须是不带<>的地址
+	// 这里的必须是不带<>的地址，加了<>的地址会被忽略
 	err := smtp.SendMail(n.addr, auth, email.from.Address, addr2Strlist(email.AllRecipients()), []byte(email.Message()))
 	if err != nil {
 		return fmt.Errorf("send email error: %w", err)

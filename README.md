@@ -53,7 +53,7 @@ notifiers:
     server: smtp.example.com
     port: 587
     from:
-      address: your-email@example.com
+      username: your-email@example.com
       password: your-password
     to:
       - recipient@example.com

@@ -58,7 +58,7 @@ type emailNotifierConf struct {
 }
 
 type emailPoster struct {
-	Address  string `yaml:"address" validate:"required,email"`
+	Username string `yaml:"username" validate:"required,email"`
 	Password string `yaml:"password" validate:"required"`
 }
 

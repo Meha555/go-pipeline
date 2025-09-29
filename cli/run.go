@@ -66,9 +66,9 @@ var runCmd = &cobra.Command{
 					return fmt.Errorf("parsing cc addresses failed: %w", err)
 				}
 				ebuilder = email.NewBuilder().
-					From(&mail.Address{Name: "go-pipeline", Address: conf.Notifiers.Email.From.Address}).
-					To(toAddrs).
-					Cc(ccAddrs)
+					From(&mail.Address{Name: "go-pipeline", Address: conf.Notifiers.Email.From.Username}).
+					To(toAddrs...).
+					Cc(ccAddrs...)
 			}
 		}
 
@@ -76,19 +76,23 @@ var runCmd = &cobra.Command{
 			err = fmt.Errorf("pipeline %s@%s run failed", pipe.Name, pipe.Version)
 			if conf.Notifiers != nil {
 				if conf.Notifiers.Email != nil {
-					err = eNotifier.Send(ebuilder.
+					if e := eNotifier.Send(ebuilder.
 						Subject("Pipeline Failed").
 						Body([]byte(err.Error())).
-						Build())
+						Build()); e != nil {
+						fmt.Printf("notifiying failed: %v", e)
+					}
 				}
 			}
 		} else {
 			if conf.Notifiers != nil {
 				if conf.Notifiers.Email != nil {
-					err = eNotifier.Send(ebuilder.
+					if e := eNotifier.Send(ebuilder.
 						Subject("Pipeline Success").
 						Body([]byte(fmt.Sprintf("pipeline %s@%s run success", pipe.Name, pipe.Version))).
-						Build())
+						Build()); e != nil {
+						fmt.Printf("notifiying failed: %v", e)
+					}
 				}
 			}
 		}
