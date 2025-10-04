@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v3"
@@ -104,57 +101,6 @@ func ParseConfigFile(configPath string) (*PipelineConf, error) {
 	}
 
 	return config, nil
-}
-
-var (
-	ErrTimeoutIsEmpty = errors.New("timeout is empty")
-	ErrTimeoutNoUnit  = errors.New("timeout has no unit")
-	ErrTimeoutValue   = errors.New("invalid timeout value")
-	ErrTimeoutUnit    = errors.New("invalid timeout unit, supported units are ms, s, m, h, d")
-)
-
-// ParseDuration 解析带单位的时间字符串为time.Duration
-func ParseDuration(duration string) (time.Duration, error) {
-	if duration == "" {
-		return time.Duration(math.MaxInt64), ErrTimeoutIsEmpty
-	}
-
-	unitIndex := -1
-	for i := range duration {
-		if duration[i] < '0' || duration[i] > '9' {
-			unitIndex = i
-			break
-		}
-	}
-	if unitIndex == -1 {
-		return time.Duration(math.MaxInt64), ErrTimeoutNoUnit
-	}
-
-	// 分割数值和单位
-	valueStr := duration[:unitIndex]
-	unit := strings.ToLower(duration[unitIndex:])
-
-	// 解析数值
-	value, err := strconv.Atoi(valueStr)
-	if err != nil || value < 0 {
-		return time.Duration(math.MaxInt64), fmt.Errorf("%w: %v", ErrTimeoutValue, err)
-	}
-
-	// 根据单位转换为对应的Duration
-	switch unit {
-	case "ms":
-		return time.Duration(value) * time.Millisecond, nil
-	case "s":
-		return time.Duration(value) * time.Second, nil
-	case "m":
-		return time.Duration(value) * time.Minute, nil
-	case "h":
-		return time.Duration(value) * time.Hour, nil
-	case "d":
-		return time.Duration(value) * 24 * time.Hour, nil
-	default:
-		return 0, fmt.Errorf("%w: %s", ErrTimeoutUnit, unit)
-	}
 }
 
 func ParseArgs(args []string, ctx context.Context) {

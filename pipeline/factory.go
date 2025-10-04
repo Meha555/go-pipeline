@@ -1,11 +1,11 @@
 package pipeline
 
 import (
-	"errors"
 	"log"
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/Meha555/go-pipeline/parser"
 )
@@ -75,10 +75,8 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
 		}
 		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
-		if jobTimeout, err := parser.ParseDuration(jobDef.Timeout); err != nil {
-			if !errors.Is(err, parser.ErrTimeoutIsEmpty) {
-				logger.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
-			}
+		if jobTimeout, err := time.ParseDuration(jobDef.Timeout); err != nil {
+			logger.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
 		} else {
 			jobObj.Timeout = jobTimeout
 		}
