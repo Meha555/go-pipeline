@@ -57,11 +57,12 @@ var runCmd = &cobra.Command{
 					SmtpPort:   conf.Notifiers.Email.Port,
 					Password:   conf.Notifiers.Email.From.Password,
 				}
-				toAddrs, err := mail.ParseAddressList(strings.Join(conf.Notifiers.Email.To, ","))
+				var toAddrs, ccAddrs []*mail.Address
+				toAddrs, err = mail.ParseAddressList(strings.Join(conf.Notifiers.Email.To, ","))
 				if err != nil {
 					return fmt.Errorf("parsing to addresses failed: %w", err)
 				}
-				ccAddrs, err := mail.ParseAddressList(strings.Join(conf.Notifiers.Email.Cc, ","))
+				ccAddrs, err = mail.ParseAddressList(strings.Join(conf.Notifiers.Email.Cc, ","))
 				if err != nil {
 					return fmt.Errorf("parsing cc addresses failed: %w", err)
 				}

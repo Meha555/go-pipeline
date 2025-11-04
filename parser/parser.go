@@ -15,6 +15,7 @@ type PipelineConf struct {
 	Name    string `yaml:"name" validate:"required"`
 	Version string `yaml:"version" validate:"required"`
 	Shell   string `yaml:"shell" validate:"required"`
+	Cron      string         `yaml:"cron,omitempty"`
 	// NOTE 使用指针，这样可以判断是否存在该字段
 	Notifiers *notifiersConf `yaml:"notifiers,omitempty"`
 	Envs      []string       `yaml:"envs,omitempty"`

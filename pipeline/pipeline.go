@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/Meha555/go-pipeline/internal"
 	"github.com/Meha555/go-pipeline/parser"
+	"github.com/robfig/cron/v3"
 )
 
 type EnvList = parser.DictList[string, string]
@@ -17,6 +21,8 @@ type Pipeline struct {
 	Name    string
 	Version string
 	Shell   string
+	Cron    string
+
 	Envs    EnvList // 为了确保环境变量初始化时按照conf.Envs中切片中的顺序，这里不能采用map
 	Workdir string
 	Stages  []*Stage
@@ -26,6 +32,12 @@ type Pipeline struct {
 }
 
 type PipelineOptions func(*Pipeline)
+
+func WithCron(cron string) PipelineOptions {
+	return func(p *Pipeline) {
+		p.Cron = cron
+	}
+}
 
 func WithEnvs(envs EnvList) PipelineOptions {
 	return func(p *Pipeline) {
@@ -69,27 +81,12 @@ func (p *Pipeline) AddStage(stage *Stage) *Pipeline {
 	return p
 }
 
-// NOTE 不需要恢复工作目录和环境变量，因为程序执行完就退出了
-func (p *Pipeline) Run(ctx context.Context) (status Status) {
-	defer logger.SetPrefix(logger.Prefix())
-	logger.SetPrefix(fmt.Sprintf("pipeline[%s@%s] ", p.Name, p.Version))
-	status = Success
-	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
-		p.timer.Start()
-		defer func() {
-			p.timer.Elapsed()
-			logger.Printf("Pipeline %s@%s cost %v", p.Name, p.Version, p.timer.Elapsed())
-		}()
-	}
+// // 会恢复日志前缀、但不会恢复环境变量。不需要恢复工作目录，因为运行时改动工作目录是脚本中启动的子进程做的，和父进程无关
+// var stackRestore = internal.NewStack()
 
-	defer func() {
-		statistics := fmt.Sprintf("(%d succeed/%d total)", p.succeedCnt, len(p.Stages))
-		if status == Failed {
-			logger.Printf("Pipeline %s@%s failed %s", p.Name, p.Version, statistics)
-		} else {
-			logger.Printf("Pipeline %s@%s success %s", p.Name, p.Version, statistics)
-		}
-	}()
+func (p *Pipeline) preRun(context.Context) Status {
+	// stackRestore.Push(logger.Prefix())
+	logger.SetPrefix(fmt.Sprintf("pipeline[%s@%s] ", p.Name, p.Version))
 	// 处理环境变量
 	{
 		// 初始化内置环境变量
@@ -125,6 +122,7 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			}
 		}
 	}
+
 	// 处理workdir
 	{
 		cmds := findInlineCmd(p.Workdir, p.Shell)
@@ -147,28 +145,85 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 			}
 			return ""
 		})
-	}
 
-	if p.Workdir != "" {
-		if err := os.Chdir(p.Workdir); err != nil {
-			logger.Printf("change workdir to %s failed: %v", p.Workdir, err)
-			return Failed
+		if p.Workdir != "" {
+			if err := os.Chdir(p.Workdir); err != nil {
+				logger.Printf("change workdir to %s failed: %v", p.Workdir, err)
+				return Failed
+			}
 		}
 	}
+	return Success
+}
 
+func (p *Pipeline) postRun(context.Context) Status {
+	// if prefix, err := stackRestore.Pop(); err == nil {
+	// 	logger.SetPrefix(prefix.(string))
+	// }
+	return Success
+}
+
+func (p *Pipeline) run(ctx context.Context) (status Status) {
 	stageNames := make([]string, len(p.Stages))
 	for i, stage := range p.Stages {
 		stageNames[i] = stage.Name
 	}
-	logger.Printf("Pipeline %s@%s (%s): %v", p.Name, p.Version, p.Workdir, stageNames)
 
-	for _, stage := range p.Stages {
-		if stage.Perform(ctx) == Failed {
-			status = Failed
-			return
-		}
-		p.succeedCnt++
+	var cronStr string
+	var cronDaemon *cron.Cron
+	if p.Cron != "" {
+		cronStr = fmt.Sprintf("{%s}", p.Cron)
+		cronDaemon = cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 	}
+	logger.Printf("%s (%s): %v", cronStr, p.Workdir, stageNames)
+
+	work := func() {
+		status = Success
+		defer func() {
+			statistics := fmt.Sprintf("(%d succeed/%d total)", p.succeedCnt, len(p.Stages))
+			logger.Printf("%s %s", status, statistics)
+		}()
+		if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
+			p.timer.Start()
+			defer func() {
+				p.timer.Elapsed()
+				logger.Printf("Cost %v", p.timer.Elapsed())
+			}()
+		}
+		for _, stage := range p.Stages {
+			if stage.Perform(ctx) == Failed {
+				status = Failed
+				return
+			}
+			p.succeedCnt++
+		}
+	}
+
+	if cronDaemon != nil {
+		cronDaemon.AddFunc(p.Cron, work) // 失败的任务仍然会继续执行
+		cronDaemon.Start()
+
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+		<-sigChan
+		c := cronDaemon.Stop()
+		select {
+		case <-c.Done():
+		case <-time.After(5 * time.Second):
+			logger.Println("wait some job to quit for too long, force quit!")
+		}
+	} else {
+		work()
+	}
+	return
+}
+
+func (p *Pipeline) Run(ctx context.Context) (status Status) {
+	defer p.postRun(ctx)
+	if status = p.preRun(ctx); status != Success {
+		return
+	}
+	status = p.run(ctx)
 	return
 }
 

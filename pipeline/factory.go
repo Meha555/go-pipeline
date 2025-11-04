@@ -36,7 +36,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	}
 
 	// 创建流水线
-	pipeObj := NewPipeline(config.Name, config.Version, config.Shell, WithEnvs(envs), WithWorkdir(config.Workdir))
+	pipeObj := NewPipeline(config.Name, config.Version, config.Shell, WithCron(config.Cron), WithEnvs(envs), WithWorkdir(config.Workdir))
 
 	// 为每个阶段创建 Stage 对象
 	stageMap := make(map[string]*Stage)
@@ -75,10 +75,10 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
 		}
 		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
-		if jobTimeout, err := time.ParseDuration(jobDef.Timeout); err != nil {
-			logger.Printf("job %s timeout parse failed: %v, set to +inf", jobName, err)
-		} else {
-			jobObj.Timeout = jobTimeout
+		if jobDef.Timeout != "" {
+			if jobTimeout, err := time.ParseDuration(jobDef.Timeout); err == nil {
+				jobObj.Timeout = jobTimeout
+			}
 		}
 		stageObj.AddJob(jobObj)
 	}

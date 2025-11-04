@@ -4,6 +4,7 @@ go 1.22
 
 require (
 	github.com/go-playground/validator/v10 v10.27.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.1
 	gopkg.in/yaml.v3 v3.0.1
 )

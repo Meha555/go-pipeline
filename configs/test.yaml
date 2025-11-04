@@ -1,6 +1,7 @@
 name: "test-pipeline"
 version: "1.0.0"
 shell: "sh"
+cron: "@every 5s"
 
 envs:
   - "HELLO=world"
@@ -23,14 +24,20 @@ stages:
   # - test
 
 skips: # 可以是stage或job
-  - debug
+  # - debug
   # - test
+  - job1
+  - job2
+  - job3
+  - job4
   - job5
   - job6
+  # - job7
 
 debug_job:
   stage: debug
   actions:
+    - "echo \"PWD: `pwd`\""
     - "echo \"builtin PIPELINE_NAME: $PIPELINE_NAME\""
     - "echo \"builtin PIPELINE_VERSION: $PIPELINE_VERSION\""
     - "echo \"builtin PIPELINE_TIMESTAMP: $PIPELINE_TIMESTAMP\""
@@ -62,7 +69,7 @@ job1:
       cd -
       pwd
       echo "line 3"
-    - sleep 5
+    # - sleep 5
     - echo "I am job1, slept for 5s"
   timeout: 2s
   allow_failure: yes
@@ -112,5 +119,6 @@ job7:
   stage: deploy
   actions:
     - "echo \"job7 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
+    - echo "PWD `pwd`"
     - echo "I am job7, $HELLO"
     - echo "I am in deploy stage"
