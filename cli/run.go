@@ -90,7 +90,7 @@ var runCmd = &cobra.Command{
 				if conf.Notifiers.Email != nil {
 					if e := eNotifier.Send(ebuilder.
 						Subject("Pipeline Success").
-						Body([]byte(fmt.Sprintf("pipeline %s@%s run success", pipe.Name, pipe.Version))).
+						Body(fmt.Appendf([]byte("pipeline %s@%s run success"), pipe.Name, pipe.Version)).
 						Build()); e != nil {
 						fmt.Printf("notifiying failed: %v", e)
 					}

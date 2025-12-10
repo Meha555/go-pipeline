@@ -22,11 +22,11 @@ const (
 
 func (s Status) String() string {
 	switch s {
-	case 0:
+	case Success:
 		return "Success"
-	case 1:
+	case Failed:
 		return "Failed"
-	case 2:
+	case Skiped:
 		return "Skiped"
 	default:
 		return "Unknown"

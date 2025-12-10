@@ -186,7 +186,6 @@ func (p *Pipeline) run(ctx context.Context) (status Status) {
 		if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
 			p.timer.Start()
 			defer func() {
-				p.timer.Elapsed()
 				logger.Printf("Cost %v", p.timer.Elapsed())
 			}()
 		}

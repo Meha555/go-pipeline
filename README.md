@@ -79,6 +79,8 @@ name: "cmake-pipeline"
 version: "1.0.0"
 shell: sh
 
+cron: "1 * * * *"
+
 envs:
   - CMAKE_GENERATOR=Ninja
   - MOTTO="An apple a day $(date +%Y-%m-%d), keeps the `echo 'doctor'` away"
