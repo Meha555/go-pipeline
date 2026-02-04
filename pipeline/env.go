@@ -63,11 +63,6 @@ func setupBuiltins(p *Pipeline) {
 			Description: "Current Pipeline version",
 		},
 		{
-			Name:        "PIPELINE_SHELL",
-			Value:       p.Shell,
-			Description: "Current Pipeline shell",
-		},
-		{
 			Name:        "PIPELINE_TIMESTAMP",
 			Value:       time.Now().Format("20060102150405"),
 			Description: "Current Pipeline starting timestamp in format 'YYYYMMDDHHMMSS'",
@@ -104,7 +99,7 @@ type inlineCmd struct {
 // str 表示当前查找的字符串
 // cmd 表示找到的内联命令
 // nextPos 表示下一次应该查找的起始位置下标
-func findInlineCmdImplBackQuote(offset int, str, shell string) (cmd *inlineCmd, nextPos int) {
+func findInlineCmdImplBackQuote(offset int, str string) (cmd *inlineCmd, nextPos int) {
 	lenValue := len(str)
 	leftBracketPos, rightBracketPos := -1, -1
 	if lenValue < 3 {
@@ -118,7 +113,7 @@ func findInlineCmdImplBackQuote(offset int, str, shell string) (cmd *inlineCmd, 
 			cmdLine := str[offset+leftBracketPos+1 : rightBracketPos]
 			// found a cmd
 			if len(cmdLine) > 0 {
-				shellCmd, shellFlag := getShell(shell)
+				shellCmd, shellFlag := GetShell()
 				return &inlineCmd{
 					cmd:      exec.Command(shellCmd, shellFlag, cmdLine),
 					startPos: leftBracketPos + offset,
@@ -135,7 +130,7 @@ func findInlineCmdImplBackQuote(offset int, str, shell string) (cmd *inlineCmd, 
 // str 表示当前查找的字符串
 // cmd 表示找到的内联命令
 // nextPos 表示下一次应该查找的起始位置下标
-func findInlineCmdImplDollar(offset int, str, shell string) (cmd *inlineCmd, nextPos int) {
+func findInlineCmdImplDollar(offset int, str string) (cmd *inlineCmd, nextPos int) {
 	lenValue := len(str)
 	leftBracketPos, rightBracketPos := -1, -1
 	if lenValue < 4 {
@@ -150,7 +145,7 @@ func findInlineCmdImplDollar(offset int, str, shell string) (cmd *inlineCmd, nex
 			cmdLine := str[offset+leftBracketPos+1 : rightBracketPos]
 			// found a cmd
 			if len(cmdLine) > 0 {
-				shellCmd, shellFlag := getShell(shell)
+				shellCmd, shellFlag := GetShell()
 				return &inlineCmd{
 					cmd:      exec.Command(shellCmd, shellFlag, cmdLine),
 					startPos: dollarPos + offset,
@@ -162,12 +157,12 @@ func findInlineCmdImplDollar(offset int, str, shell string) (cmd *inlineCmd, nex
 	return nil, lenValue + offset + 1
 }
 
-func findInlineCmd(str, shell string) []*inlineCmd {
+func findInlineCmd(str string) []*inlineCmd {
 	var cmds []*inlineCmd
 	lenValue := len(str)
-	finder := func(f func(offset int, str, shell string) (cmd *inlineCmd, nextPos int)) {
+	finder := func(f func(offset int, str string) (cmd *inlineCmd, nextPos int)) {
 		for i := 0; i < lenValue; i++ {
-			cmd, nextPos := f(i, str, shell)
+			cmd, nextPos := f(i, str)
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}

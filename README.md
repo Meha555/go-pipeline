@@ -77,7 +77,6 @@ Create a file named `pipeline.yaml`:
 ```yaml
 name: "cmake-pipeline"
 version: "1.0.0"
-shell: sh
 
 cron: "1 * * * *"
 

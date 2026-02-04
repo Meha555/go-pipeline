@@ -1,6 +1,5 @@
 name: "test-pipeline"
 version: "1.0.0"
-shell: "sh"
 cron: "@every 5s"
 
 envs:
@@ -48,7 +47,8 @@ debug_job:
     - "echo \"builtin MY_TIMESTAMP: $MY_TIMESTAMP\""
     - "echo \"builtin GET_PIPELINE_TIMESTAMP: $GET_PIPELINE_TIMESTAMP\""
     - "echo \"builtin MY_INLINE_CMD: $MY_INLINE_CMD\""
-    - exit 1
+    - "'C:\\Program Files\\LLVM\\bin\\clang++.exe' --version"
+    # - exit 1
 
 job1:
   stage: build

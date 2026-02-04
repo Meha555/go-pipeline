@@ -33,7 +33,8 @@ func NewAction(cmd string, args ...string) *Action {
 }
 
 func (a *Action) prepare(ctx context.Context) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, a.Cmd, a.Args...)
+	// cmd := exec.CommandContext(ctx, a.Cmd, a.Args...)
+	cmd := ShellCommandContext(ctx, a.Cmd, a.Args...)
 	// a.stdout, _ = cmd.StdoutPipe()
 	// a.stderr, _ = cmd.StderrPipe()
 	return cmd

@@ -36,7 +36,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	}
 
 	// 创建流水线
-	pipeObj := NewPipeline(config.Name, config.Version, config.Shell, WithCron(config.Cron), WithEnvs(envs), WithWorkdir(config.Workdir))
+	pipeObj := NewPipeline(config.Name, config.Version, WithCron(config.Cron), WithEnvs(envs), WithWorkdir(config.Workdir))
 
 	// 为每个阶段创建 Stage 对象
 	stageMap := make(map[string]*Stage)
@@ -68,11 +68,11 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 
 		// 创建Job并添加到Stage
 		// 1. 创建Actions并添加到Job
-		actions := makeActions(pipeObj.Shell, jobDef.Actions)
+		actions := makeActions(jobDef.Actions)
 		// 2. 创建Hooks并添加到Job
 		hooks := &Hooks{
-			Before: makeActions(pipeObj.Shell, jobDef.Hooks.Before),
-			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
+			Before: makeActions(jobDef.Hooks.Before),
+			After:  makeActions(jobDef.Hooks.After),
 		}
 		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
 		if jobDef.Timeout != "" {
@@ -86,12 +86,59 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	return pipeObj
 }
 
-func makeActions(shell string, actionLines []string) (actions []*Action) {
-	shellCmd, shellFlag := getShell(shell)
+func makeActions(actionLines []string) (actions []*Action) {
 	for _, actionLine := range actionLines {
-		actions = append(actions, NewAction(shellCmd, shellFlag, actionLine))
+		actionArgs, err := makeSafeCmdline(actionLine)
+		if err != nil {
+			logger.Printf("invalid action format: %s (error: %v)", actionLine, err)
+			os.Exit(-1)
+		}
+		var action *Action
+		if len(actionArgs) > 1 {
+			action = NewAction(actionArgs[0], actionArgs[1:]...)
+		} else {
+			action = NewAction(actionArgs[0])
+		}
+		actions = append(actions, action)
 	}
 	return
+}
+
+// 使用'单引号包裹一个带有空格的命令。
+// 双引号 "：会解析内部的变量、转义符
+// 单引号 '：原义传递所有内容，不会修改字符串
+func makeSafeCmdline(rawline string) ([]string, error) {
+	var (
+		args        []string
+		withinQuote bool = false
+	)
+	l := len(rawline)
+	i, j := 0, 0
+	for ; j < l && i <= j; j++ {
+		c := rawline[j]
+		if c == ' ' && !withinQuote {
+			if j > i {
+				args = append(args, rawline[i:j])
+			}
+			i = j + 1
+		} else if c == '\'' {
+			if withinQuote {
+				withinQuote = false
+				args = append(args, rawline[i:j])
+			} else {
+				withinQuote = true
+			}
+			i = j + 1
+		}
+	}
+	if j > i && rawline[j-1] != ' ' {
+		if withinQuote && rawline[j-1] == '"' {
+			args = append(args, rawline[i:j-1])
+		} else if !withinQuote {
+			args = append(args, rawline[i:j])
+		}
+	}
+	return args, nil
 }
 
 var logger *log.Logger
