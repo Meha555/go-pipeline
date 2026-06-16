@@ -44,10 +44,11 @@ debug_job:
     - "echo \"builtin PIPELINE_WORKDIR: $PIPELINE_WORKDIR\""
     - "echo \"builtin STAGE_NAME: $STAGE_NAME\""
     - "echo \"builtin JOB_NAME: $JOB_NAME\""
-    - "echo \"builtin MY_PWD: $MY_PWD\""
-    - "echo \"builtin MY_TIMESTAMP: $MY_TIMESTAMP\""
-    - "echo \"builtin GET_PIPELINE_TIMESTAMP: $GET_PIPELINE_TIMESTAMP\""
-    - "echo \"builtin MY_INLINE_CMD: $MY_INLINE_CMD\""
+    - "echo \"builtin TEMP_DIR: $TEMP_DIR\""
+    - "echo \"user MY_PWD: $MY_PWD\""
+    - "echo \"user MY_TIMESTAMP: $MY_TIMESTAMP\""
+    - "echo \"user GET_PIPELINE_TIMESTAMP: $GET_PIPELINE_TIMESTAMP\""
+    - "echo \"user MY_INLINE_CMD: $MY_INLINE_CMD\""
     - "'C:\\Program Files\\LLVM\\bin\\clang++.exe' --version"
     # - exit 1
 

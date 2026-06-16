@@ -115,7 +115,7 @@ func init() {
 	runCmd.Flags().BoolVarP(&noSilence, "no-silence", "s", false, "print every action")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output for jobs")
 	runCmd.Flags().BoolVarP(&trace, "trace", "t", false, "time trace for jobs")
-	runCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "dry run")
+	runCmd.Flags().BoolVar(&dryRun, "dry-run", false, "dry run")
 	runCmd.Flags().StringVarP(&configFile, "file", "f", "", "config file")
 	runCmd.MarkFlagRequired("file")
 }

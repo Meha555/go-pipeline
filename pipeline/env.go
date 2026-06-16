@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -48,6 +49,10 @@ var Builtins = []*Env{
 		Name:        "JOB_NAME",
 		Description: "Current Job name",
 	},
+	{
+		Name:        "TEMP_DIR",
+		Description: "Temporary directory",
+	},
 }
 
 func setupBuiltins(p *Pipeline) {
@@ -86,6 +91,11 @@ func setupBuiltins(p *Pipeline) {
 			Name:        "JOB_NAME",
 			Value:       "",
 			Description: "Current Job name",
+		},
+		{
+			Name:        "TEMP_DIR",
+			Value:       os.TempDir(),
+			Description: "Temporary directory",
 		},
 	}
 	for _, env := range Builtins {
