@@ -1,4 +1,4 @@
-//go:build linux
+//go:build !windows
 
 package pipeline
 
@@ -8,20 +8,18 @@ import (
 	"strings"
 )
 
-func GetShell() (cmd, flag string) {
+func GetDefaultShell() (cmd, flag string) {
 	cmd = "sh"
 	flag = "-c"
 	return
 }
 
-func ShellCommand(name string, args ...string) *exec.Cmd {
-	shellCmd, shellFlag := GetShell()
+func ShellCommand(shellCmd, shellFlag, name string, args ...string) *exec.Cmd {
 	shellArgs := append([]string{name}, args...)
 	return exec.Command(shellCmd, shellFlag, strings.Join(shellArgs, " "))
 }
 
-func ShellCommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
-	shellCmd, shellFlag := GetShell()
+func ShellCommandContext(ctx context.Context, shellCmd, shellFlag, name string, args ...string) *exec.Cmd {
 	shellArgs := append([]string{name}, args...)
 	return exec.CommandContext(ctx, shellCmd, shellFlag, strings.Join(shellArgs, " "))
 }

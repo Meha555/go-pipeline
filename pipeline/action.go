@@ -17,6 +17,7 @@ import (
 type Action struct {
 	Cmd    string
 	Args   []string
+	Shell  [2]string // shellCmd, shellFlag
 	busy   bool
 	stdout io.ReadCloser
 	stderr io.ReadCloser
@@ -24,17 +25,18 @@ type Action struct {
 
 var ErrActionBusy = fmt.Errorf("action is busy because is has not finished")
 
-func NewAction(cmd string, args ...string) *Action {
+func NewAction(shell [2]string, cmd string, args ...string) *Action {
 	return &Action{
-		Cmd:  cmd,
-		Args: args,
-		busy: false,
+		Cmd:   cmd,
+		Args:  args,
+		Shell: shell,
+		busy:  false,
 	}
 }
 
 func (a *Action) prepare(ctx context.Context) *exec.Cmd {
 	// cmd := exec.CommandContext(ctx, a.Cmd, a.Args...)
-	cmd := ShellCommandContext(ctx, a.Cmd, a.Args...)
+	cmd := ShellCommandContext(ctx, a.Shell[0], a.Shell[1], a.Cmd, a.Args...)
 	// a.stdout, _ = cmd.StdoutPipe()
 	// a.stderr, _ = cmd.StderrPipe()
 	return cmd

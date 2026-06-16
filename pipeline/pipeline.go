@@ -20,6 +20,7 @@ type EnvList = parser.DictList[string, string]
 type Pipeline struct {
 	Name    string
 	Version string
+	Shell   [2]string
 	Cron    string
 
 	Envs    EnvList // 为了确保环境变量初始化时按照conf.Envs中切片中的顺序，这里不能采用map
@@ -50,6 +51,15 @@ func WithWorkdir(workdir string) PipelineOptions {
 	}
 }
 
+func WithShell(shell string) PipelineOptions {
+	return func(p *Pipeline) {
+		if shell == "" {
+			return
+		}
+		p.Shell[0], p.Shell[1] = getShell(shell)
+	}
+}
+
 func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 	p := &Pipeline{
 		Name:    name,
@@ -63,6 +73,10 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 		opt(p)
 	}
 
+	if p.Shell[0] == "" {
+		p.Shell[0], p.Shell[1] = GetDefaultShell()
+	}
+
 	if p.Workdir == "" {
 		pwd, err := os.Getwd()
 		if err != nil {
@@ -72,6 +86,22 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 	}
 
 	return p
+}
+
+func getShell(shell string) (cmd, flag string) {
+	switch shell {
+	case "bash":
+		cmd, flag = "bash", "-c"
+	case "sh":
+		cmd, flag = "sh", "-c"
+	case "cmd":
+		cmd, flag = "cmd", "/c"
+	case "powershell":
+		cmd, flag = "powershell", "-Command"
+	default:
+		panic("Unknown shell: " + shell)
+	}
+	return
 }
 
 func (p *Pipeline) AddStage(stage *Stage) *Pipeline {
@@ -95,7 +125,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 			value := p.Envs[i].Value
 			// 继续处理value中可能存在的'$'进行变量展开，以及命令的执行
 			// 1. 先执行命令
-			cmds := findInlineCmd(value)
+			cmds := findInlineCmd(value, p.Shell)
 			for _, cmd := range cmds {
 				output, err := cmd.cmd.CombinedOutput()
 				if err != nil {
@@ -123,7 +153,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 
 	// 处理workdir
 	{
-		cmds := findInlineCmd(p.Workdir)
+		cmds := findInlineCmd(p.Workdir, p.Shell)
 		for _, cmd := range cmds {
 			output, err := cmd.cmd.CombinedOutput()
 			if err != nil {

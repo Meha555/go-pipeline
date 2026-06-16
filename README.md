@@ -77,6 +77,9 @@ Create a file named `pipeline.yaml`:
 ```yaml
 name: "cmake-pipeline"
 version: "1.0.0"
+# Optional. Defaults to cmd on Windows and sh on Unix-like systems.
+# Supported values: cmd, sh, bash, powershell.
+# shell: "sh"
 
 cron: "1 * * * *"
 
@@ -135,6 +138,49 @@ cleanup_job:
     - rm -rf build
   allow_failure: yes
 ```
+
+### Shell Selection And Paths With Spaces
+
+Each pipeline runs actions through a shell. If `shell` is omitted, Go-Pipeline selects the platform default shell:
+
+- Windows: `cmd /c`
+- Linux/macOS and other non-Windows platforms: `sh -c`
+
+You can override it in the YAML configuration:
+
+```yaml
+name: "example"
+version: "1.0.0"
+shell: "sh" # cmd, sh, bash, or powershell
+```
+
+The selected shell is also exposed as the builtin `PIPELINE_SHELL` environment variable.
+
+Action command handling depends on the selected shell:
+
+- `cmd`: Go-Pipeline applies a small safe command-line splitter before invoking `cmd /c`. This supports single-quoted raw strings for paths that contain spaces, because `cmd` does not treat single quotes as quotes.
+- `sh` and `bash`: actions are passed as raw shell lines. Use normal POSIX shell syntax.
+- `powershell`: actions are passed as raw PowerShell commands. Use PowerShell's call operator (`&`) when executing a quoted path.
+
+Examples for an executable path with spaces:
+
+```yaml
+# Windows default cmd: Go-Pipeline strips the single quotes and preserves the path as one argument.
+actions:
+  - "'C:\\Program Files\\LLVM\\bin\\clang++.exe' --version"
+
+# sh/bash: the shell understands single-quoted paths directly.
+shell: "sh"
+actions:
+  - "'C:\\Program Files\\LLVM\\bin\\clang++.exe' --version"
+
+# powershell: use the call operator for quoted command paths.
+shell: "powershell"
+actions:
+  - "& 'C:\\Program Files\\LLVM\\bin\\clang++.exe' --version"
+```
+
+For `cmd`, the safe splitter is intentionally narrow: it is meant to preserve single-quoted command/path segments with spaces. For complex shell syntax, choose a shell that natively supports the syntax you need, such as `sh`, `bash`, or `powershell`.
 
 ### 2. Run Your Pipeline
 

@@ -6,6 +6,7 @@ import "slices"
 const (
 	keywordName    = "name"
 	keywordVersion = "version"
+	keywordShell   = "shell"
 	keyWordCron    = "cron"
 
 	keywordNotifiers = "notifiers"
@@ -29,6 +30,7 @@ const (
 var keywordMap = []string{
 	keywordName,
 	keywordVersion,
+	keywordShell,
 	keyWordCron,
 	keywordNotifiers,
 	keywordEnvs,

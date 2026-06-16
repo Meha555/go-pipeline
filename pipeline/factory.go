@@ -36,7 +36,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	}
 
 	// 创建流水线
-	pipeObj := NewPipeline(config.Name, config.Version, WithCron(config.Cron), WithEnvs(envs), WithWorkdir(config.Workdir))
+	pipeObj := NewPipeline(config.Name, config.Version, WithShell(config.Shell), WithCron(config.Cron), WithEnvs(envs), WithWorkdir(config.Workdir))
 
 	// 为每个阶段创建 Stage 对象
 	stageMap := make(map[string]*Stage)
@@ -68,11 +68,11 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 
 		// 创建Job并添加到Stage
 		// 1. 创建Actions并添加到Job
-		actions := makeActions(jobDef.Actions)
+		actions := makeActions(pipeObj.Shell, jobDef.Actions)
 		// 2. 创建Hooks并添加到Job
 		hooks := &Hooks{
-			Before: makeActions(jobDef.Hooks.Before),
-			After:  makeActions(jobDef.Hooks.After),
+			Before: makeActions(pipeObj.Shell, jobDef.Hooks.Before),
+			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
 		}
 		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
 		if jobDef.Timeout != "" {
@@ -86,18 +86,22 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 	return pipeObj
 }
 
-func makeActions(actionLines []string) (actions []*Action) {
+func makeActions(shell [2]string, actionLines []string) (actions []*Action) {
 	for _, actionLine := range actionLines {
-		actionArgs, err := makeSafeCmdline(actionLine)
-		if err != nil {
-			logger.Printf("invalid action format: %s (error: %v)", actionLine, err)
-			os.Exit(-1)
-		}
 		var action *Action
-		if len(actionArgs) > 1 {
-			action = NewAction(actionArgs[0], actionArgs[1:]...)
+		if shell[0] == "cmd" {
+			actionArgs, err := makeSafeCmdline(actionLine)
+			if err != nil {
+				logger.Printf("invalid action format: %s (error: %v)", actionLine, err)
+				os.Exit(-1)
+			}
+			if len(actionArgs) > 1 {
+				action = NewAction(shell, actionArgs[0], actionArgs[1:]...)
+			} else {
+				action = NewAction(shell, actionArgs[0])
+			}
 		} else {
-			action = NewAction(actionArgs[0])
+			action = NewAction(shell, actionLine)
 		}
 		actions = append(actions, action)
 	}
