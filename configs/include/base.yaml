@@ -1,0 +1,22 @@
+name: "include-demo"
+version: "1.0.0"
+shell: "sh"
+
+envs:
+  - DEMO_SOURCE=base
+
+stages:
+  - prepare
+  - build
+  - test
+
+prepare_job:
+  stage: prepare
+  actions:
+    - echo "prepare from included base config"
+
+build_job:
+  stage: build
+  actions:
+    - echo "build from included base config"
+  timeout: 1m

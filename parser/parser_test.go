@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,4 +60,384 @@ job:
 	if conf.Shell != "sh" {
 		t.Fatalf("Shell = %q, want sh", conf.Shell)
 	}
+}
+
+func TestParseConfigFileIncludesLocalFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "base.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  actions:
+    - echo from base
+  timeout: 1m
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+build_job:
+  actions:
+    - echo from main
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if conf.Name != "test" || conf.Version != "1.0.0" {
+		t.Fatalf("Name/Version = %q/%q, want test/1.0.0", conf.Name, conf.Version)
+	}
+	job := conf.Jobs["build_job"]
+	if job.Stage != "build" {
+		t.Fatalf("build_job.Stage = %q, want build", job.Stage)
+	}
+	if len(job.Actions) != 1 || job.Actions[0] != "echo from main" {
+		t.Fatalf("build_job.Actions = %#v, want main override", job.Actions)
+	}
+	if job.Timeout != "1m" {
+		t.Fatalf("build_job.Timeout = %q, want 1m", job.Timeout)
+	}
+}
+
+func TestParseConfigFileIncludesListAndReplacesSequences(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "base.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+  - test
+envs:
+  - A=1
+base_job:
+  stage: build
+  actions:
+    - echo base
+`)
+	writeTestFile(t, tmpDir, "extra.yaml", `extra_job:
+  stage: test
+  actions:
+    - echo extra
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include:
+  - base.yaml
+  - extra.yaml
+envs:
+  - B=2
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if len(conf.Envs) != 1 || conf.Envs[0] != "B=2" {
+		t.Fatalf("Envs = %#v, want sequence replacement", conf.Envs)
+	}
+	if _, ok := conf.Jobs["base_job"]; !ok {
+		t.Fatalf("base_job missing after include")
+	}
+	if _, ok := conf.Jobs["extra_job"]; !ok {
+		t.Fatalf("extra_job missing after include")
+	}
+}
+
+func TestParseConfigFileReplacesNonJobTopLevelMappings(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "base.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+notifiers:
+  email:
+    server: smtp.example.com
+    port: 587
+    from:
+      username: sender@example.com
+      password: secret
+    to:
+      - receiver@example.com
+job:
+  stage: build
+  actions:
+    - echo ok
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+notifiers:
+  bot:
+    server: https://example.com/hook
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if conf.Notifiers.Email != nil {
+		t.Fatalf("Email notifier should be replaced by local notifiers mapping")
+	}
+	if conf.Notifiers.Bot == nil {
+		t.Fatalf("Bot notifier missing after local notifiers mapping")
+	}
+}
+
+func TestParseConfigFileResolvesNestedIncludesRelativeToDeclaringFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "shared/base.yaml", `name: nested
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  actions:
+    - echo nested
+`)
+	writeTestFile(t, tmpDir, "configs/middle.yaml", `include: ../shared/base.yaml
+`)
+	configPath := writeTestFile(t, tmpDir, "configs/main.yaml", `include: middle.yaml
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if conf.Name != "nested" {
+		t.Fatalf("Name = %q, want nested", conf.Name)
+	}
+}
+
+func TestParseConfigFileExpandsWildcardIncludesInSortedOrder(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "jobs/b.yaml", `ordered_job:
+  stage: build
+  actions:
+    - echo b
+`)
+	writeTestFile(t, tmpDir, "jobs/a.yaml", `ordered_job:
+  stage: build
+  actions:
+    - echo a
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: jobs/*.yaml
+name: wildcard
+version: 1.0.0
+stages:
+  - build
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	got := conf.Jobs["ordered_job"].Actions
+	if len(got) != 1 || got[0] != "echo b" {
+		t.Fatalf("ordered_job.Actions = %#v, want last sorted include to win", got)
+	}
+}
+
+func TestParseConfigFileExpandsDoubleStarWildcardIncludes(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "jobs/nested/job.yml", `nested_job:
+  stage: build
+  actions:
+    - echo nested
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: jobs/**/*.yml
+name: doublestar
+version: 1.0.0
+stages:
+  - build
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if _, ok := conf.Jobs["nested_job"]; !ok {
+		t.Fatalf("nested_job missing after ** include")
+	}
+}
+
+func TestParseConfigFileOrdersWildcardIncludesByFileName(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "jobs/a/z.yml", `ordered_job:
+  stage: build
+  actions:
+    - echo z
+`)
+	writeTestFile(t, tmpDir, "jobs/z/a.yml", `ordered_job:
+  stage: build
+  actions:
+    - echo a
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: jobs/**/*.yml
+name: filename-order
+version: 1.0.0
+stages:
+  - build
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	got := conf.Jobs["ordered_job"].Actions
+	if len(got) != 1 || got[0] != "echo z" {
+		t.Fatalf("ordered_job.Actions = %#v, want filename order with z.yml loaded last", got)
+	}
+}
+
+func TestParseConfigFileLogsLoadedFilesAndOverrideWarnings(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "base.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  actions:
+    - echo base
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+build_job:
+  actions:
+    - echo main
+`)
+
+	var buf bytes.Buffer
+	oldOutput := log.Writer()
+	oldFlags := log.Flags()
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(oldOutput)
+		log.SetFlags(oldFlags)
+	})
+
+	if _, err := ParseConfigFile(configPath); err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	logs := buf.String()
+	if !strings.Contains(logs, "load config") {
+		t.Fatalf("logs = %q, want load config entry", logs)
+	}
+	if !strings.Contains(logs, "warning: key \"build_job.actions\"") {
+		t.Fatalf("logs = %q, want override warning", logs)
+	}
+}
+
+func TestParseConfigFileReturnsErrorForEmptyWildcard(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: missing/*.yaml
+name: test
+version: 1.0.0
+stages:
+  - build
+job:
+  stage: build
+  actions:
+    - echo ok
+`)
+
+	_, err := ParseConfigFile(configPath)
+	if err == nil || !strings.Contains(err.Error(), "no files matched") {
+		t.Fatalf("ParseConfigFile() error = %v, want empty wildcard error", err)
+	}
+}
+
+func TestParseConfigFileReturnsErrorForInvalidIncludeItemType(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include:
+  - local: base.yaml
+name: test
+version: 1.0.0
+stages:
+  - build
+job:
+  stage: build
+  actions:
+    - echo ok
+`)
+
+	_, err := ParseConfigFile(configPath)
+	if err == nil || !strings.Contains(err.Error(), "include entries must be strings") {
+		t.Fatalf("ParseConfigFile() error = %v, want invalid include item error", err)
+	}
+}
+
+func TestParseConfigFileReturnsErrorForDuplicateSingletonFields(t *testing.T) {
+	tests := []struct {
+		name  string
+		field string
+		base  string
+		main  string
+	}{
+		{name: "name", field: "name", base: "base", main: "main"},
+		{name: "version", field: "version", base: "1.0.0", main: "2.0.0"},
+		{name: "shell", field: "shell", base: "sh", main: "bash"},
+		{name: "cron", field: "cron", base: "@every 1m", main: "@every 2m"},
+		{name: "workdir", field: "workdir", base: "/tmp/base", main: "/tmp/main"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			baseContent := `name: test
+version: 1.0.0
+stages:
+  - build
+job:
+  stage: build
+  actions:
+    - echo ok
+`
+			if tt.field == "name" {
+				baseContent = strings.Replace(baseContent, "name: test\n", "", 1)
+			}
+			if tt.field == "version" {
+				baseContent = strings.Replace(baseContent, "version: 1.0.0\n", "", 1)
+			}
+			baseContent += tt.field + `: "` + tt.base + `"
+`
+			writeTestFile(t, tmpDir, "base.yaml", baseContent)
+			configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+`+tt.field+`: "`+tt.main+`"
+`)
+
+			_, err := ParseConfigFile(configPath)
+			if err == nil || !strings.Contains(err.Error(), "duplicate singleton field \""+tt.field+"\"") {
+				t.Fatalf("ParseConfigFile() error = %v, want duplicate singleton field error", err)
+			}
+		})
+	}
+}
+
+func TestParseConfigFileReturnsErrorForIncludeCycle(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "a.yaml", `include: b.yaml
+name: test
+version: 1.0.0
+stages:
+  - build
+job:
+  stage: build
+  actions:
+    - echo ok
+`)
+	configPath := writeTestFile(t, tmpDir, "b.yaml", `include: a.yaml
+`)
+
+	_, err := ParseConfigFile(configPath)
+	if err == nil || !strings.Contains(err.Error(), "include cycle") {
+		t.Fatalf("ParseConfigFile() error = %v, want include cycle error", err)
+	}
+}
+
+func writeTestFile(t *testing.T, root, name, content string) string {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("create parent dir for %s: %v", name, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+	return path
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"gopkg.in/yaml.v3"
 )
 
 type PipelineConf struct {
@@ -74,20 +73,13 @@ type smsNotifierConf struct {
 
 // ParseConfigFile 解析 YAML 配置文件
 func ParseConfigFile(configPath string) (*PipelineConf, error) {
-	// 检查文件是否存在
-	if _, err := os.Stat(configPath); err != nil {
+	mergedNode, err := loadConfigNode(configPath)
+	if err != nil {
 		return nil, err
 	}
 
-	// 读取配置文件内容
-	content, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("read file failed: %w", err)
-	}
-
-	// 解析配置文件
 	config := &PipelineConf{}
-	if err := yaml.Unmarshal(content, config); err != nil {
+	if err := mergedNode.Decode(config); err != nil {
 		return nil, fmt.Errorf("unmarshal config failed: %w", err)
 	}
 	// 校验配置信息

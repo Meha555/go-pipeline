@@ -139,6 +139,33 @@ cleanup_job:
   allow_failure: yes
 ```
 
+### Local Includes
+
+Pipeline files can include other local YAML files before validation and execution. This is useful for sharing common stages, jobs, environment variables, and notifier configuration.
+
+```yaml
+include: base.yaml
+```
+
+```yaml
+include:
+  - base.yaml
+  - jobs/*.yaml
+  - jobs/**/*.yml
+```
+
+Include paths are resolved relative to the YAML file that declares them. For example, if `configs/main.yaml` includes `base.yaml`, Go-Pipeline loads `configs/base.yaml`. Nested includes are resolved relative to the nested file.
+
+Wildcard includes support `*` and `**`. Matched files are loaded in file-name order for stable merge behavior. If two matches have the same file name, the full path is used as a tie-breaker. A wildcard that matches no files is treated as an error.
+
+Included files are merged first, then the current file is merged on top. This matches GitLab-style precedence: local values override included values. Top-level jobs with the same name are merged by field, so a local job can override `actions` while keeping an included `stage` or `timeout`. Sequence fields such as `stages`, `envs`, `skips`, `actions`, `hooks.before`, and `hooks.after` are replaced as a whole, not appended.
+
+When a later file overrides an existing key, Go-Pipeline prints a warning to stderr, for example:
+
+```text
+warning: key "build_job.actions" from configs/main.yaml overrides value from configs/base.yaml
+```
+
 ### Shell Selection And Paths With Spaces
 
 Each pipeline runs actions through a shell. If `shell` is omitted, Go-Pipeline selects the platform default shell:

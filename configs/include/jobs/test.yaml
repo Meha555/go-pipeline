@@ -1,0 +1,8 @@
+test_job:
+  stage: test
+  actions:
+    - echo "test job loaded through wildcard include"
+
+build_job:
+  actions:
+    - echo "build actions overridden by wildcard include"

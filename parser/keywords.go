@@ -8,6 +8,7 @@ const (
 	keywordVersion = "version"
 	keywordShell   = "shell"
 	keyWordCron    = "cron"
+	keywordInclude = "include"
 
 	keywordNotifiers = "notifiers"
 
@@ -32,6 +33,7 @@ var keywordMap = []string{
 	keywordVersion,
 	keywordShell,
 	keyWordCron,
+	keywordInclude,
 	keywordNotifiers,
 	keywordEnvs,
 	keywordWorkdir,

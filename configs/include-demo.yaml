@@ -1,0 +1,16 @@
+include:
+  - include/base.yaml
+  - include/jobs/*.yaml
+
+envs:
+  - DEMO_SOURCE=main
+
+build_job:
+  actions:
+    - echo "build actions overridden by main config"
+    - echo "timeout is inherited from include/base.yaml"
+
+local_job:
+  stage: test
+  actions:
+    - echo "local job defined in configs/include-demo.yaml"
