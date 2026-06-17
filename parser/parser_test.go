@@ -144,6 +144,37 @@ envs:
 	}
 }
 
+func TestParseConfigFileReadsJobExports(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestFile(t, tmpDir, "pipeline.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  actions:
+    - echo ok
+  exports:
+    - build.env
+    - version.env
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	got := conf.Jobs["build_job"].Exports
+	want := []string{"build.env", "version.env"}
+	if len(got) != len(want) {
+		t.Fatalf("Exports = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Exports = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestParseConfigFileReplacesNonJobTopLevelMappings(t *testing.T) {
 	tmpDir := t.TempDir()
 	writeTestFile(t, tmpDir, "base.yaml", `name: test

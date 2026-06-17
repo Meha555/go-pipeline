@@ -1,12 +1,14 @@
 package pipeline
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Meha555/go-pipeline/internal"
@@ -39,6 +41,7 @@ func (s Status) String() string {
 type Job struct {
 	Name         string
 	Actions      []*Action
+	Exports      []string
 	Hooks        *Hooks
 	Timeout      time.Duration
 	AllowFailure bool
@@ -63,6 +66,12 @@ func WithAllowFailure(allowFailure bool) JobOptions {
 	}
 }
 
+func WithExports(exports []string) JobOptions {
+	return func(j *Job) {
+		j.Exports = exports
+	}
+}
+
 func WithHooks(hooks *Hooks) JobOptions {
 	return func(j *Job) {
 		j.Hooks = hooks
@@ -73,6 +82,7 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 	j := &Job{
 		Name:         name,
 		Actions:      actions,
+		Exports:      []string{},
 		Hooks:        &Hooks{},
 		resCh:        make(chan Status),
 		Timeout:      time.Duration(math.MaxInt64),
@@ -122,14 +132,6 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 			j.logger.Error(fmt.Sprintf("hooks before failed: %v", err), "error", err)
 		}
 	}
-	defer func() {
-		if len(j.Hooks.After) > 0 {
-			if err := j.Hooks.DoAfter(ctx); err != nil {
-				j.logger.Error(fmt.Sprintf("hooks after failed: %v", err), "error", err)
-			}
-		}
-	}()
-
 	for _, action := range j.Actions {
 		// 要求Exec是阻塞的
 		if err := action.Exec(ctx); err != nil {
@@ -144,10 +146,88 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 			}
 		}
 	}
+	if len(j.Hooks.After) > 0 {
+		if err := j.Hooks.DoAfter(ctx); err != nil {
+			j.logger.Error(fmt.Sprintf("hooks after failed: %v", err), "error", err)
+		}
+	}
 	j.resCh <- status
 	return
 }
 
 func (j *Job) Result() <-chan Status {
 	return j.resCh
+}
+
+func (j *Job) importExports() error {
+	values := make(map[string]string)
+	for _, exportPath := range j.Exports {
+		path := resolveExportPath(j.s.p.Workdir, exportPath)
+		parsed, err := parseExportFile(path)
+		if err != nil {
+			return err
+		}
+		for key, value := range parsed {
+			if _, exists := values[key]; exists {
+				slog.Warn(fmt.Sprintf("export variable %s is overwritten", key), "key", key)
+			}
+			values[key] = value
+		}
+	}
+
+	for key, value := range values {
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("set export %s failed: %w", key, err)
+		}
+	}
+	return nil
+}
+
+func parseExportFile(path string) (map[string]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open export file %s failed: %w", path, err)
+	}
+	defer file.Close()
+
+	values := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	lineNo := 0
+	for scanner.Scan() {
+		lineNo++
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || !isValidExportKey(key) {
+			slog.Warn(fmt.Sprintf("ignore invalid export line %s:%d", path, lineNo), "path", path, "line", lineNo)
+			continue
+		}
+		values[key] = value
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read export file %s failed: %w", path, err)
+	}
+	return values, nil
+}
+
+func isValidExportKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := range key {
+		c := key[i]
+		if i == 0 {
+			if c != '_' && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') {
+				return false
+			}
+			continue
+		}
+		if c != '_' && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
 }

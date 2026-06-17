@@ -1,6 +1,12 @@
 package pipeline
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/Meha555/go-pipeline/parser"
+)
 
 func TestMakeActionsUsesSafeCmdlineForCmd(t *testing.T) {
 	shell := [2]string{"cmd", "/c"}
@@ -36,5 +42,44 @@ func TestMakeActionsKeepsRawLineForShells(t *testing.T) {
 				t.Fatalf("Args = %#v, want empty", actions[0].Args)
 			}
 		})
+	}
+}
+
+func TestMakePipelinePassesExportsToJob(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pipeline.yaml")
+	config := []byte(`name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  actions:
+    - echo ok
+  exports:
+    - build.env
+    - version.env
+`)
+	if err := os.WriteFile(configPath, config, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	conf, err := parser.ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+
+	pipe := MakePipeline(conf)
+	if len(pipe.Stages) != 1 || len(pipe.Stages[0].Jobs) != 1 {
+		t.Fatalf("pipeline shape = %d stages, want one stage with one job", len(pipe.Stages))
+	}
+	got := pipe.Stages[0].Jobs[0].Exports
+	want := []string{"build.env", "version.env"}
+	if len(got) != len(want) {
+		t.Fatalf("Exports = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Exports = %#v, want %#v", got, want)
+		}
 	}
 }

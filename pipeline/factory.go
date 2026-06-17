@@ -75,7 +75,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			Before: makeActions(pipeObj.Shell, jobDef.Hooks.Before),
 			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
 		}
-		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithHooks(hooks))
+		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithExports(jobDef.Exports), WithHooks(hooks))
 		if jobDef.Timeout != "" {
 			if jobTimeout, err := time.ParseDuration(jobDef.Timeout); err == nil {
 				jobObj.Timeout = jobTimeout

@@ -70,12 +70,25 @@ func (s *Stage) Perform(ctx context.Context) (status Status) {
 	}
 	// 收集结果
 	for _, job := range s.Jobs {
-		status = <-job.Result()
-		if status == Failed {
+		jobStatus := <-job.Result()
+		if jobStatus == Failed {
 			s.failedCnt++
+			status = Failed
 		}
 	}
 	// 等待所有任务完成
 	s.wg.Wait()
+	if status == Success {
+		for _, job := range s.Jobs {
+			if len(job.Exports) == 0 {
+				continue
+			}
+			// 注入环境变量到当前进程
+			if err := job.importExports(); err != nil {
+				job.logger.Error(fmt.Sprintf("import exports failed: %v", err), "error", err)
+				return Failed
+			}
+		}
+	}
 	return
 }

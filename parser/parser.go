@@ -37,6 +37,7 @@ type jobConf struct {
 	Actions      []string  `yaml:"actions" validate:"required"`
 	Timeout      string    `yaml:"timeout,omitempty"`
 	AllowFailure bool      `yaml:"allow_failure,omitempty"`
+	Exports      []string  `yaml:"exports,omitempty"`
 	Hooks        hooksConf `yaml:"hooks,omitempty"`
 }
 
