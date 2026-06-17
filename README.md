@@ -6,7 +6,7 @@ A lightweight, flexible, and powerful pipeline/workflow execution engine written
 
 ## Features
 
-- **Lightweight**: Lightweight design, no external dependencies, quickly startup
+- **Lightweight**: Lightweight design with minimal runtime dependencies and fast startup
 - **YAML-based Configuration**: Define your pipelines using intuitive YAML syntax
 - **Timeout Support**: Configure timeouts for individual jobs
 - **Failure Handling**: Control whether job failures should fail the entire pipeline
@@ -160,6 +160,8 @@ Wildcard includes support `*` and `**`. Matched files are loaded in file-name or
 
 Included files are merged first, then the current file is merged on top. This matches GitLab-style precedence: local values override included values. Top-level jobs with the same name are merged by field, so a local job can override `actions` while keeping an included `stage` or `timeout`. Sequence fields such as `stages`, `envs`, `skips`, `actions`, `hooks.before`, and `hooks.after` are replaced as a whole, not appended.
 
+The singleton fields `name`, `version`, `shell`, `cron`, and `workdir` can appear only once across the full include chain. If any included or current file defines one of these fields more than once, parsing fails instead of overriding it.
+
 When a later file overrides an existing key, Go-Pipeline prints a warning to stderr, for example:
 
 ```text
@@ -208,6 +210,81 @@ actions:
 ```
 
 For `cmd`, the safe splitter is intentionally narrow: it is meant to preserve single-quoted command/path segments with spaces. For complex shell syntax, choose a shell that natively supports the syntax you need, such as `sh`, `bash`, or `powershell`.
+
+### Logging
+
+Go-Pipeline writes logs to stderr so stdout remains available for command output.
+
+By default, logs use human-readable console format at `info` level. Console logs are intentionally compact: they show only timestamp, level, and message. Structured fields are hidden in console mode so command output stays easy to read:
+
+```bash
+./go-pipeline run -f pipeline.yaml
+```
+
+Example console output:
+
+```text
+2026-06-17T17:51:02+08:00 INF Stage@build: 1 jobs
+2026-06-17T17:51:02+08:00 INF Job@build_job success
+2026-06-17T17:51:02+08:00 INF Success (3 succeed/3 total)
+```
+
+Use JSON format when you need structured fields for log processing. JSON logs keep all fields, including pipeline context inherited through the logger hierarchy:
+
+```bash
+./go-pipeline --log-format json run -f pipeline.yaml
+```
+
+Example JSON output:
+
+```json
+{"level":"info","pipeline":"include-demo","version":"1.0.0","stage":"build","job":"build_job","actions":2,"time":"2026-06-17T17:51:02+08:00","message":"Job@build_job: 2 actions"}
+```
+
+The logger hierarchy is:
+
+- Pipeline logs carry `pipeline` and `version`.
+- Stage logs inherit Pipeline fields and add `stage`.
+- Job logs inherit Stage fields and add `job`.
+- Action logs use the global logger and do not inherit pipeline, stage, or job context.
+
+Internally, Go-Pipeline uses the standard library `log/slog` API and routes logs through zerolog for encoding and output.
+
+Console color defaults to `auto`, which enables color only when stderr is a terminal that supports it.
+
+You can switch format, level, and color behavior with CLI flags:
+
+```bash
+./go-pipeline --log-format json --log-level debug --log-color never run -f pipeline.yaml
+```
+
+Supported formats:
+
+- `console`
+- `json`
+
+Supported levels:
+
+- `debug`
+- `info`
+- `warn`
+- `error`
+- `disabled`
+
+Supported color modes:
+
+- `auto`
+- `never`
+
+`auto` enables color only when stderr is a terminal that supports it. `never` disables color.
+
+Environment variables can also set defaults:
+
+```bash
+PIPELINE_LOG_FORMAT=json PIPELINE_LOG_LEVEL=warn PIPELINE_LOG_COLOR=never ./go-pipeline run -f pipeline.yaml
+```
+
+CLI flags take precedence over environment variables. Every log event includes an RFC3339 timestamp; `PIPELINE_LOG_TIMESTAMP` is not supported.
 
 ### 2. Run Your Pipeline
 

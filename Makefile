@@ -13,4 +13,10 @@ install:
 clean:
 	go clean
 
+fmt:
+	go fmt ./...
+
+test:
+	go test ./...
+
 .PHONY: all build install clean

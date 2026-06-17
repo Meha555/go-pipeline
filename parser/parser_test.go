@@ -2,11 +2,15 @@ package parser
 
 import (
 	"bytes"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Meha555/go-pipeline/internal/logging"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func TestParseConfigFileAllowsOptionalShell(t *testing.T) {
@@ -302,23 +306,26 @@ build_job:
 `)
 
 	var buf bytes.Buffer
-	oldOutput := log.Writer()
-	oldFlags := log.Flags()
-	log.SetOutput(&buf)
-	log.SetFlags(0)
+	oldLogger := log.Logger
+	oldLevel := zerolog.GlobalLevel()
+	oldDefault := slog.Default()
 	t.Cleanup(func() {
-		log.SetOutput(oldOutput)
-		log.SetFlags(oldFlags)
+		log.Logger = oldLogger
+		zerolog.SetGlobalLevel(oldLevel)
+		slog.SetDefault(oldDefault)
 	})
+	if err := logging.Configure(logging.Options{Format: logging.FormatJSON, Level: logging.LevelDebug, Writer: &buf}); err != nil {
+		t.Fatalf("configure logger: %v", err)
+	}
 
 	if _, err := ParseConfigFile(configPath); err != nil {
 		t.Fatalf("ParseConfigFile() error = %v", err)
 	}
 	logs := buf.String()
-	if !strings.Contains(logs, "load config") {
-		t.Fatalf("logs = %q, want load config entry", logs)
+	if !strings.Contains(logs, `"level":"debug"`) || !strings.Contains(logs, `"message":"load config`) {
+		t.Fatalf("logs = %q, want debug load config entry", logs)
 	}
-	if !strings.Contains(logs, "warning: key \"build_job.actions\"") {
+	if !strings.Contains(logs, `"level":"warn"`) || !strings.Contains(logs, `"key":"build_job.actions"`) || !strings.Contains(logs, `warning: key \"build_job.actions\"`) {
 		t.Fatalf("logs = %q, want override warning", logs)
 	}
 }

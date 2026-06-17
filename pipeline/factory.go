@@ -1,7 +1,8 @@
 package pipeline
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"slices"
 	"strings"
@@ -31,7 +32,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			// 注意此时value中可能包含$变量以及命令需要执行，需要在后续展开。选择在后续展开是因为builtin环境变量的初始化在后面
 			envs.Append(key, value)
 		} else {
-			logger.Printf("invalid env format: %s (expected key=value)", envLine)
+			slog.Warn(fmt.Sprintf("invalid env format: %s (expected key=value)", envLine), "env", envLine)
 		}
 	}
 
@@ -62,7 +63,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 		stageObj, exists := stageMap[jobDef.Stage]
 		if !exists {
 			// 如果Stage不存在，丢弃Job
-			logger.Printf("job %s belong to undefined stage %s, ignored it", jobName, jobDef.Stage)
+			slog.Warn(fmt.Sprintf("job %s belong to undefined stage %s, ignored it", jobName, jobDef.Stage), "job", jobName, "stage", jobDef.Stage)
 			continue
 		}
 
@@ -92,7 +93,7 @@ func makeActions(shell [2]string, actionLines []string) (actions []*Action) {
 		if shell[0] == "cmd" {
 			actionArgs, err := makeSafeCmdline(actionLine)
 			if err != nil {
-				logger.Printf("invalid action format: %s (error: %v)", actionLine, err)
+				slog.Error(fmt.Sprintf("invalid action format: %s (error: %v)", actionLine, err), "error", err, "action", actionLine)
 				os.Exit(-1)
 			}
 			if len(actionArgs) > 1 {
@@ -143,14 +144,4 @@ func makeSafeCmdline(rawline string) ([]string, error) {
 		}
 	}
 	return args, nil
-}
-
-var logger *log.Logger
-
-func init() {
-	var logFlags int
-	if os.Getenv("PIPELINE_LOG_TIMESTAMP") == "1" {
-		logFlags |= log.LstdFlags | log.Lmicroseconds
-	}
-	logger = log.New(os.Stderr, "", logFlags)
 }

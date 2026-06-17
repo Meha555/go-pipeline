@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"time"
@@ -43,6 +44,7 @@ type Job struct {
 	AllowFailure bool
 	resCh        chan Status
 	timer        *internal.Timer
+	logger       *slog.Logger
 
 	s *Stage
 }
@@ -76,6 +78,7 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 		Timeout:      time.Duration(math.MaxInt64),
 		AllowFailure: false,
 		timer:        &internal.Timer{},
+		logger:       s.logger.With("job", name),
 		s:            s,
 	}
 
@@ -87,8 +90,6 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 }
 
 func (j *Job) Do(ctx context.Context) (status Status) {
-	defer logger.SetPrefix(logger.Prefix())
-	logger.SetPrefix(fmt.Sprintf("job[%s] ", j.Name))
 	os.Setenv("JOB_NAME", j.Name)
 	status = Success
 	// 如果不同步一下，单纯的 <- j.resCh 不能代表Job.Do的执行逻辑走完了，特别是还存在defer的情况下
@@ -97,17 +98,16 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
 		j.timer.Start()
 		defer func() {
-			j.timer.Elapsed()
-			logger.Printf("Job %s cost %v", j.Name, j.timer.Elapsed())
+			j.logger.Info(fmt.Sprintf("Job@%s cost %v", j.Name, j.timer.Elapsed()), "cost", j.timer.Elapsed())
 		}()
 	}
 
-	logger.Printf("Job %s: %d actions", j.Name, len(j.Actions))
+	j.logger.Info(fmt.Sprintf("Job@%s: %d actions", j.Name, len(j.Actions)), "actions", len(j.Actions))
 	defer func() {
 		if status == Failed {
-			logger.Printf("Job %s failed", j.Name)
+			j.logger.Error(fmt.Sprintf("Job@%s failed", j.Name))
 		} else {
-			logger.Printf("Job %s success", j.Name)
+			j.logger.Info(fmt.Sprintf("Job@%s success", j.Name))
 		}
 	}()
 
@@ -119,13 +119,13 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 
 	if len(j.Hooks.Before) > 0 {
 		if err := j.Hooks.DoBefore(ctx); err != nil {
-			logger.Printf("hooks before failed: %v", err)
+			j.logger.Error(fmt.Sprintf("hooks before failed: %v", err), "error", err)
 		}
 	}
 	defer func() {
 		if len(j.Hooks.After) > 0 {
 			if err := j.Hooks.DoAfter(ctx); err != nil {
-				logger.Printf("hooks after failed: %v", err)
+				j.logger.Error(fmt.Sprintf("hooks after failed: %v", err), "error", err)
 			}
 		}
 	}()
@@ -134,9 +134,9 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 		// 要求Exec是阻塞的
 		if err := action.Exec(ctx); err != nil {
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				logger.Printf("action (%s) timeout %v exceeded", action, j.Timeout)
+				j.logger.Error(fmt.Sprintf("action (%s) timeout %v exceeded", action, j.Timeout), "action", action.String(), "timeout", j.Timeout)
 			} else {
-				logger.Printf("action (%s) failed: %v", action, err)
+				j.logger.Error(fmt.Sprintf("action (%s) failed: %v", action, err), "error", err, "action", action.String())
 			}
 			if !j.AllowFailure {
 				status = Failed

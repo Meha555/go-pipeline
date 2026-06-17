@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,10 +54,10 @@ func (a *Action) Exec(ctx context.Context) (err error) {
 	}()
 	a.busy = true
 	if noSilence, ok := ctx.Value(internal.NoSilenceKey).(bool); ok && noSilence {
-		logger.Printf("exec action: %s", a.String())
+		slog.Info(fmt.Sprintf("exec action: %s", a.String()), "action", a.String())
 	}
 	if dryRun, ok := ctx.Value(internal.DryRunKey).(bool); ok && dryRun {
-		logger.Println(a.String())
+		slog.Info(a.String(), "action", a.String())
 		return
 	}
 	// 由于scanner.Scan()可能在cmd.Wait()关闭管道写端后继续读取而导致报错"file already closed"。这点在cmd.StdoutPipe()的文档中有说明。这里显式等待输出完成后再等待命令执行完成。
@@ -93,6 +94,6 @@ func readOutput(wg *sync.WaitGroup, reader io.Reader, out io.Writer) {
 		io.WriteString(out, "\n")
 	}
 	if err := scanner.Err(); err != nil { // 说明不是io.EOF
-		logger.Printf("read output error: %v", err)
+		slog.Error(fmt.Sprintf("read output error: %v", err), "error", err)
 	}
 }

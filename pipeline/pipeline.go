@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
@@ -29,6 +30,8 @@ type Pipeline struct {
 
 	timer      *internal.Timer
 	succeedCnt int
+
+	logger *slog.Logger
 }
 
 type PipelineOptions func(*Pipeline)
@@ -67,6 +70,7 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 		Envs:    EnvList{},
 		Stages:  []*Stage{},
 		timer:   &internal.Timer{},
+		logger:  slog.Default().With("pipeline", name, "version", version),
 	}
 
 	for _, opt := range opts {
@@ -80,7 +84,7 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 	if p.Workdir == "" {
 		pwd, err := os.Getwd()
 		if err != nil {
-			logger.Printf("get current workdir failed: %v", err)
+			p.logger.Error(fmt.Sprintf("get current workdir failed: %v", err), "error", err)
 		}
 		p.Workdir = pwd
 	}
@@ -114,7 +118,6 @@ func (p *Pipeline) AddStage(stage *Stage) *Pipeline {
 
 func (p *Pipeline) preRun(context.Context) Status {
 	// stackRestore.Push(logger.Prefix())
-	logger.SetPrefix(fmt.Sprintf("pipeline[%s@%s] ", p.Name, p.Version))
 	// 处理环境变量
 	{
 		// 初始化内置环境变量
@@ -129,7 +132,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 			for _, cmd := range cmds {
 				output, err := cmd.cmd.CombinedOutput()
 				if err != nil {
-					logger.Printf("failed to expr %s: %v", cmd.cmd.String(), err)
+					p.logger.Error(fmt.Sprintf("failed to expr %s: %v", cmd.cmd.String(), err), "error", err, "expr", cmd.cmd.String())
 					continue
 				}
 				// 替换value中cmd.startPos到cmd.endPos的内容为命令的输出
@@ -145,7 +148,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 				}
 				return ""
 			})); err != nil {
-				logger.Printf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err)
+				p.logger.Error(fmt.Sprintf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err), "error", err, "key", key, "value", value)
 				return Failed
 			}
 		}
@@ -157,7 +160,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 		for _, cmd := range cmds {
 			output, err := cmd.cmd.CombinedOutput()
 			if err != nil {
-				logger.Printf("failed to expr %s: %v", cmd.cmd.String(), err)
+				p.logger.Error(fmt.Sprintf("failed to expr %s: %v", cmd.cmd.String(), err), "error", err, "expr", cmd.cmd.String())
 				continue
 			}
 			// 替换Workdir中cmd.startPos到cmd.endPos的内容为命令的输出
@@ -176,7 +179,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 
 		if p.Workdir != "" {
 			if err := os.Chdir(p.Workdir); err != nil {
-				logger.Printf("change workdir to %s failed: %v", p.Workdir, err)
+				p.logger.Error(fmt.Sprintf("change workdir to %s failed: %v", p.Workdir, err), "error", err, "workdir", p.Workdir)
 				return Failed
 			}
 		}
@@ -203,18 +206,18 @@ func (p *Pipeline) run(ctx context.Context) (status Status) {
 		cronStr = fmt.Sprintf("{%s}", p.Cron)
 		cronDaemon = cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 	}
-	logger.Printf("%s (%s): %v", cronStr, p.Workdir, stageNames)
+	p.logger.Info(fmt.Sprintf("%s@%s %s (%s): %v", p.Name, p.Version, cronStr, p.Workdir, stageNames), "cron", cronStr, "workdir", p.Workdir, "stages", stageNames)
 
 	work := func() {
 		status = Success
 		defer func() {
 			statistics := fmt.Sprintf("(%d succeed/%d total)", p.succeedCnt, len(p.Stages))
-			logger.Printf("%s %s", status, statistics)
+			p.logger.Info(fmt.Sprintf("%s %s", status, statistics), "status", status.String(), "succeed", p.succeedCnt, "total", len(p.Stages))
 		}()
 		if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
 			p.timer.Start()
 			defer func() {
-				logger.Printf("Cost %v", p.timer.Elapsed())
+				p.logger.Info(fmt.Sprintf("Cost %v", p.timer.Elapsed()), "cost", p.timer.Elapsed())
 			}()
 		}
 		for _, stage := range p.Stages {
@@ -237,7 +240,7 @@ func (p *Pipeline) run(ctx context.Context) (status Status) {
 		select {
 		case <-c.Done():
 		case <-time.After(5 * time.Second):
-			logger.Println("wait some job to quit for too long, force quit!")
+			p.logger.Warn("wait some job to quit for too long, force quit!")
 		}
 	} else {
 		work()

@@ -2,7 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -45,7 +45,7 @@ func loadConfigNodeWithStack(configPath string, stack []string) (*yaml.Node, map
 	if _, err := os.Stat(absPath); err != nil {
 		return nil, nil, err
 	}
-	log.Printf("load config %s", absPath)
+	slog.Debug(fmt.Sprintf("load config %s", absPath), "path", absPath)
 
 	content, err := os.ReadFile(absPath)
 	if err != nil {
@@ -141,7 +141,7 @@ func expandIncludePath(baseDir, includePath string) ([]string, error) {
 		return nil, fmt.Errorf("no files matched include pattern %q", includePath)
 	}
 	sortIncludeMatches(matches)
-	log.Printf("include pattern %s matched: %s", includePath, strings.Join(matches, ", "))
+	slog.Debug(fmt.Sprintf("include pattern %s matched: %s", includePath, strings.Join(matches, ", ")), "pattern", includePath, "matches", matches)
 	return matches, nil
 }
 
@@ -258,7 +258,7 @@ func mergeMappingNodes(base, override *yaml.Node, sources map[string]string, ove
 		if baseSource == "" {
 			baseSource = "earlier config"
 		}
-		log.Printf("warning: key %q from %s overrides value from %s", pathKey, overrideFile, baseSource)
+		slog.Warn(fmt.Sprintf("warning: key %q from %s overrides value from %s", pathKey, overrideFile, baseSource), "key", pathKey, "override_file", overrideFile, "base_source", baseSource)
 		baseMapping.Content[baseIndex+1] = cloneNode(value)
 		copySourcesForPath(sources, overrideSources, currentPath, overrideFile)
 	}

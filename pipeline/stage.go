@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 
@@ -18,15 +19,17 @@ type Stage struct {
 	wg        *sync.WaitGroup
 	p         *Pipeline
 	failedCnt int
+	logger    *slog.Logger
 }
 
 func NewStage(name string, p *Pipeline) *Stage {
 	return &Stage{
-		Name:  name,
-		Jobs:  make([]*Job, 0),
-		p:     p,
-		timer: &internal.Timer{},
-		wg:    &sync.WaitGroup{},
+		Name:   name,
+		Jobs:   make([]*Job, 0),
+		p:      p,
+		timer:  &internal.Timer{},
+		wg:     &sync.WaitGroup{},
+		logger: p.logger.With("stage", name),
 	}
 }
 
@@ -36,31 +39,28 @@ func (s *Stage) AddJob(job *Job) *Stage {
 }
 
 func (s *Stage) Perform(ctx context.Context) (status Status) {
-	defer logger.SetPrefix(logger.Prefix())
-	logger.SetPrefix(fmt.Sprintf("stage[%s] ", s.Name))
 	os.Setenv("STAGE_NAME", s.Name)
 	status = Success
 	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
 		s.timer.Start()
 		defer func() {
-			s.timer.Elapsed()
-			logger.Printf("Stage %s cost %v", s.Name, s.timer.Elapsed())
+			s.logger.Info(fmt.Sprintf("Stage@%s cost %v", s.Name, s.timer.Elapsed()), "cost", s.timer.Elapsed())
 		}()
 	}
 
-	logger.Printf("Stage %s: %d jobs", s.Name, len(s.Jobs))
+	s.logger.Info(fmt.Sprintf("Stage@%s: %d jobs", s.Name, len(s.Jobs)), "jobs", len(s.Jobs))
 
 	if err := os.Chdir(s.p.Workdir); err != nil {
-		logger.Printf("change workdir to %s failed: %v", s.p.Workdir, err)
+		s.logger.Error(fmt.Sprintf("change workdir to %s failed: %v", s.p.Workdir, err), "error", err, "workdir", s.p.Workdir)
 		return Failed
 	}
 
 	defer func() {
 		statistics := fmt.Sprintf("(%d failed/%d total)", s.failedCnt, len(s.Jobs))
 		if status == Failed {
-			logger.Printf("Stage %s failed %s", s.Name, statistics)
+			s.logger.Error(fmt.Sprintf("Stage@%s failed %s", s.Name, statistics), "failed", s.failedCnt, "total", len(s.Jobs))
 		} else {
-			logger.Printf("Stage %s success %s", s.Name, statistics)
+			s.logger.Info(fmt.Sprintf("Stage@%s success %s", s.Name, statistics), "failed", s.failedCnt, "total", len(s.Jobs))
 		}
 	}()
 
