@@ -10,7 +10,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:     "go-pipeline",
 	Short:   "A tool to run workflow",
-	Version: internal.Version,
+	Version: internal.ResolveVersion(internal.BuildVersion()),
 }
 
 func Execute() {
