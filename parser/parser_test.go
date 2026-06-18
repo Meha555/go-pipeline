@@ -78,7 +78,7 @@ build_job:
     - echo from base
   timeout: 1m
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: base.yaml
 build_job:
   actions:
     - echo from main
@@ -122,7 +122,7 @@ base_job:
   actions:
     - echo extra
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include:
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes:
   - base.yaml
   - extra.yaml
 envs:
@@ -195,7 +195,7 @@ job:
   actions:
     - echo ok
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: base.yaml
 notifiers:
   bot:
     server: https://example.com/hook
@@ -224,9 +224,9 @@ build_job:
   actions:
     - echo nested
 `)
-	writeTestFile(t, tmpDir, "configs/middle.yaml", `include: ../shared/base.yaml
+	writeTestFile(t, tmpDir, "configs/middle.yaml", `includes: ../shared/base.yaml
 `)
-	configPath := writeTestFile(t, tmpDir, "configs/main.yaml", `include: middle.yaml
+	configPath := writeTestFile(t, tmpDir, "configs/main.yaml", `includes: middle.yaml
 `)
 
 	conf, err := ParseConfigFile(configPath)
@@ -250,7 +250,7 @@ func TestParseConfigFileExpandsWildcardIncludesInSortedOrder(t *testing.T) {
   actions:
     - echo a
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: jobs/*.yaml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: jobs/*.yaml
 name: wildcard
 version: 1.0.0
 stages:
@@ -274,7 +274,7 @@ func TestParseConfigFileExpandsDoubleStarWildcardIncludes(t *testing.T) {
   actions:
     - echo nested
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: jobs/**/*.yml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: jobs/**/*.yml
 name: doublestar
 version: 1.0.0
 stages:
@@ -302,7 +302,7 @@ func TestParseConfigFileOrdersWildcardIncludesByFileName(t *testing.T) {
   actions:
     - echo a
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: jobs/**/*.yml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: jobs/**/*.yml
 name: filename-order
 version: 1.0.0
 stages:
@@ -330,7 +330,7 @@ build_job:
   actions:
     - echo base
 `)
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: base.yaml
 build_job:
   actions:
     - echo main
@@ -363,7 +363,7 @@ build_job:
 
 func TestParseConfigFileReturnsErrorForEmptyWildcard(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: missing/*.yaml
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: missing/*.yaml
 name: test
 version: 1.0.0
 stages:
@@ -382,7 +382,7 @@ job:
 
 func TestParseConfigFileReturnsErrorForInvalidIncludeItemType(t *testing.T) {
 	tmpDir := t.TempDir()
-	configPath := writeTestFile(t, tmpDir, "main.yaml", `include:
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes:
   - local: base.yaml
 name: test
 version: 1.0.0
@@ -395,8 +395,28 @@ job:
 `)
 
 	_, err := ParseConfigFile(configPath)
-	if err == nil || !strings.Contains(err.Error(), "include entries must be strings") {
+	if err == nil || !strings.Contains(err.Error(), "includes entries must be strings") {
 		t.Fatalf("ParseConfigFile() error = %v, want invalid include item error", err)
+	}
+}
+
+func TestParseConfigFileDoesNotSupportLegacyIncludeKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "base.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+job:
+  stage: build
+  actions:
+    - echo ok
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+`)
+
+	_, err := ParseConfigFile(configPath)
+	if err == nil {
+		t.Fatalf("ParseConfigFile() error = %v, want error for unsupported legacy include key", err)
 	}
 }
 
@@ -435,7 +455,7 @@ job:
 			baseContent += tt.field + `: "` + tt.base + `"
 `
 			writeTestFile(t, tmpDir, "base.yaml", baseContent)
-			configPath := writeTestFile(t, tmpDir, "main.yaml", `include: base.yaml
+			configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: base.yaml
 `+tt.field+`: "`+tt.main+`"
 `)
 
@@ -449,7 +469,7 @@ job:
 
 func TestParseConfigFileReturnsErrorForIncludeCycle(t *testing.T) {
 	tmpDir := t.TempDir()
-	writeTestFile(t, tmpDir, "a.yaml", `include: b.yaml
+	writeTestFile(t, tmpDir, "a.yaml", `includes: b.yaml
 name: test
 version: 1.0.0
 stages:
@@ -459,12 +479,12 @@ job:
   actions:
     - echo ok
 `)
-	configPath := writeTestFile(t, tmpDir, "b.yaml", `include: a.yaml
+	configPath := writeTestFile(t, tmpDir, "b.yaml", `includes: a.yaml
 `)
 
 	_, err := ParseConfigFile(configPath)
-	if err == nil || !strings.Contains(err.Error(), "include cycle") {
-		t.Fatalf("ParseConfigFile() error = %v, want include cycle error", err)
+	if err == nil || !strings.Contains(err.Error(), "includes cycle") {
+		t.Fatalf("ParseConfigFile() error = %v, want includes cycle error", err)
 	}
 }
 

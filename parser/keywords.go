@@ -4,11 +4,11 @@ import "slices"
 
 // keywords
 const (
-	keywordName    = "name"
-	keywordVersion = "version"
-	keywordShell   = "shell"
-	keyWordCron    = "cron"
-	keywordInclude = "include"
+	keywordName     = "name"
+	keywordVersion  = "version"
+	keywordShell    = "shell"
+	keyWordCron     = "cron"
+	keywordIncludes = "includes"
 
 	keywordNotifiers = "notifiers"
 
@@ -34,7 +34,7 @@ var keywordMap = []string{
 	keywordVersion,
 	keywordShell,
 	keyWordCron,
-	keywordInclude,
+	keywordIncludes,
 	keywordNotifiers,
 	keywordEnvs,
 	keywordWorkdir,

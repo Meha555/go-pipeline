@@ -180,17 +180,17 @@ Variables are only guaranteed to be available to later stages. Jobs in the same 
 Pipeline files can include other local YAML files before validation and execution. This is useful for sharing common stages, jobs, environment variables, and notifier configuration.
 
 ```yaml
-include: base.yaml
+includes: base.yaml
 ```
 
 ```yaml
-include:
+includes:
   - base.yaml
   - jobs/*.yaml
   - jobs/**/*.yml
 ```
 
-Include paths are resolved relative to the YAML file that declares them. For example, if `configs/main.yaml` includes `base.yaml`, Go-Pipeline loads `configs/base.yaml`. Nested includes are resolved relative to the nested file.
+Include paths are resolved relative to the YAML file that declares `includes`. For example, if `configs/main.yaml` includes `base.yaml`, Go-Pipeline loads `configs/base.yaml`. Nested includes are resolved relative to the nested file.
 
 Wildcard includes support `*` and `**`. Matched files are loaded in file-name order for stable merge behavior. If two matches have the same file name, the full path is used as a tie-breaker. A wildcard that matches no files is treated as an error.
 

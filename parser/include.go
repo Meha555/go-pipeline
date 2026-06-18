@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const includeKey = "include"
+const includesKey = "includes"
 
 // 仅允许出现一次的关键字
 var singletonKeys = map[string]struct{}{
@@ -38,7 +38,7 @@ func loadConfigNodeWithStack(configPath string, stack []string) (*yaml.Node, map
 	for i, item := range stack {
 		if item == absPath {
 			cycle := append(append([]string{}, stack[i:]...), absPath)
-			return nil, nil, fmt.Errorf("include cycle: %s", strings.Join(cycle, " -> "))
+			return nil, nil, fmt.Errorf("includes cycle: %s", strings.Join(cycle, " -> "))
 		}
 	}
 
@@ -61,7 +61,7 @@ func loadConfigNodeWithStack(configPath string, stack []string) (*yaml.Node, map
 		return nil, nil, fmt.Errorf("config %s must be a YAML mapping", absPath)
 	}
 
-	includeNode := removeMappingKey(mapping, includeKey)
+	includeNode := removeMappingKey(mapping, includesKey)
 	merged := newMappingNode()
 	sources := make(map[string]string)
 
@@ -96,18 +96,18 @@ func resolveIncludePaths(baseFile string, includeNode *yaml.Node) ([]string, err
 	switch includeNode.Kind {
 	case yaml.ScalarNode:
 		if includeNode.Tag != "!!str" {
-			return nil, fmt.Errorf("include entries must be strings")
+			return nil, fmt.Errorf("includes entries must be strings")
 		}
 		entries = append(entries, includeNode.Value)
 	case yaml.SequenceNode:
 		for _, item := range includeNode.Content {
 			if item.Kind != yaml.ScalarNode || item.Tag != "!!str" {
-				return nil, fmt.Errorf("include entries must be strings")
+				return nil, fmt.Errorf("includes entries must be strings")
 			}
 			entries = append(entries, item.Value)
 		}
 	default:
-		return nil, fmt.Errorf("include entries must be strings")
+		return nil, fmt.Errorf("includes entries must be strings")
 	}
 
 	var resolved []string
@@ -135,13 +135,13 @@ func expandIncludePath(baseDir, includePath string) ([]string, error) {
 		matches, err = filepath.Glob(pattern)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("expand include %s: %w", includePath, err)
+		return nil, fmt.Errorf("expand includes entry %s: %w", includePath, err)
 	}
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no files matched include pattern %q", includePath)
+		return nil, fmt.Errorf("no files matched includes pattern %q", includePath)
 	}
 	sortIncludeMatches(matches)
-	slog.Debug(fmt.Sprintf("include pattern %s matched: %s", includePath, strings.Join(matches, ", ")), "pattern", includePath, "matches", matches)
+	slog.Debug(fmt.Sprintf("includes pattern %s matched: %s", includePath, strings.Join(matches, ", ")), "pattern", includePath, "matches", matches)
 	return matches, nil
 }
 
@@ -224,7 +224,7 @@ func mergeMappingNodes(base, override *yaml.Node, sources map[string]string, ove
 	for i := 0; i < len(overrideMapping.Content); i += 2 {
 		key := overrideMapping.Content[i]
 		value := overrideMapping.Content[i+1]
-		if key.Value == includeKey {
+		if key.Value == includesKey {
 			continue
 		}
 		currentPath := appendPath(pathParts, key.Value)
@@ -289,7 +289,7 @@ func collectSources(node *yaml.Node, sourceFile string, pathParts []string) map[
 	for i := 0; i < len(mapping.Content); i += 2 {
 		key := mapping.Content[i]
 		value := mapping.Content[i+1]
-		if key.Value == includeKey {
+		if key.Value == includesKey {
 			continue
 		}
 		currentPath := appendPath(pathParts, key.Value)
