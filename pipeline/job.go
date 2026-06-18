@@ -41,6 +41,7 @@ func (s Status) String() string {
 type Job struct {
 	Name         string
 	Actions      []*Action
+	Envs         EnvList
 	Exports      []string
 	Hooks        *Hooks
 	Timeout      time.Duration
@@ -72,6 +73,12 @@ func WithExports(exports []string) JobOptions {
 	}
 }
 
+func WithJobEnvs(envs EnvList) JobOptions {
+	return func(j *Job) {
+		j.Envs = envs
+	}
+}
+
 func WithHooks(hooks *Hooks) JobOptions {
 	return func(j *Job) {
 		j.Hooks = hooks
@@ -82,7 +89,6 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 	j := &Job{
 		Name:         name,
 		Actions:      actions,
-		Exports:      []string{},
 		Hooks:        &Hooks{},
 		resCh:        make(chan Status),
 		Timeout:      time.Duration(math.MaxInt64),
@@ -100,7 +106,6 @@ func NewJob(name string, actions []*Action, s *Stage, opts ...JobOptions) *Job {
 }
 
 func (j *Job) Do(ctx context.Context) (status Status) {
-	os.Setenv("JOB_NAME", j.Name)
 	status = Success
 	// 如果不同步一下，单纯的 <- j.resCh 不能代表Job.Do的执行逻辑走完了，特别是还存在defer的情况下
 	defer j.s.wg.Done()
@@ -126,6 +131,12 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 		ctx, cancel = context.WithTimeout(ctx, j.Timeout)
 		defer cancel()
 	}
+
+	// 向Job和Job中的Actions注入环境变量
+	jobEnv := j.buildEnv()
+	applyActionEnvs(j.Hooks.Before, jobEnv)
+	applyActionEnvs(j.Actions, jobEnv)
+	applyActionEnvs(j.Hooks.After, jobEnv)
 
 	if len(j.Hooks.Before) > 0 {
 		if err := j.Hooks.DoBefore(ctx); err != nil {
@@ -153,6 +164,30 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 	}
 	j.resCh <- status
 	return
+}
+
+func (j *Job) buildEnv() []string {
+	// 初始化job的环境变量（往pipeline的环境变量列表中覆盖）
+	builtin := EnvList{{Key: "JOB_NAME", Value: j.Name}}
+	resolved := resolveEnvList(j.s.p.Shell, j.Envs, builtin, j.s.p.Envs)
+	result := make([]string, 0, len(builtin)+len(resolved))
+	for _, env := range builtin {
+		result = append(result, envLine(env.Key, env.Value))
+	}
+	for _, env := range resolved {
+		result = append(result, envLine(env.Key, env.Value))
+	}
+	return result
+}
+
+func envLine(key, value string) string {
+	return fmt.Sprintf("%s=%s", key, value)
+}
+
+func applyActionEnvs(actions []*Action, envs []string) {
+	for _, action := range actions {
+		action.SetEnvs(envs)
+	}
 }
 
 func (j *Job) Result() <-chan Status {

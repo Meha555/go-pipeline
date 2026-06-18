@@ -124,32 +124,11 @@ func (p *Pipeline) preRun(context.Context) Status {
 		// 初始化内置环境变量
 		setupBuiltins(p)
 		// 初始化定制环境变量
-		for i := range p.Envs {
-			key := p.Envs[i].Key
-			value := p.Envs[i].Value
-			// 继续处理value中可能存在的'$'进行变量展开，以及命令的执行
-			// 1. 先执行命令
-			cmds := findInlineCmd(value, p.Shell)
-			for _, cmd := range cmds {
-				output, err := cmd.cmd.CombinedOutput()
-				if err != nil {
-					p.logger.Error(fmt.Sprintf("failed to expr %s: %v", cmd.cmd.String(), err), "error", err, "expr", cmd.cmd.String())
-					continue
-				}
-				// 替换value中cmd.startPos到cmd.endPos的内容为命令的输出
-				value = value[:cmd.startPos] + strings.TrimSuffix(string(output), "\n") + value[cmd.endPos+1:]
-			}
-			// 2. 再执行展开
-			if err := os.Setenv(key, os.Expand(value, func(v string) string {
-				if val := os.Getenv(v); val != "" {
-					return val
-				}
-				if val, ok := p.Envs.Find(v); ok {
-					return val
-				}
-				return ""
-			})); err != nil {
-				p.logger.Error(fmt.Sprintf("set env %s=%s for pipeline %s failed: %v", key, value, p.Name, err), "error", err, "key", key, "value", value)
+		resolved := resolveEnvList(p.Shell, p.Envs)
+		p.Envs = resolved
+		for _, env := range p.Envs {
+			if err := os.Setenv(env.Key, env.Value); err != nil {
+				p.logger.Error(fmt.Sprintf("set env %s=%s for pipeline %s failed: %v", env.Key, env.Value, p.Name, err), "error", err, "key", env.Key, "value", env.Value)
 				return Failed
 			}
 		}

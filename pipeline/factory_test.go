@@ -83,3 +83,36 @@ build_job:
 		}
 	}
 }
+
+func TestMakePipelinePassesEnvsToJob(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pipeline.yaml")
+	config := []byte(`name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  envs:
+    JOB_VAR: build-only
+    SHARED: from-job
+  actions:
+    - echo ok
+`)
+	if err := os.WriteFile(configPath, config, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	conf, err := parser.ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+
+	pipe := MakePipeline(conf)
+	if len(pipe.Stages) != 1 || len(pipe.Stages[0].Jobs) != 1 {
+		t.Fatalf("pipeline shape = %d stages, want one stage with one job", len(pipe.Stages))
+	}
+	got := pipe.Stages[0].Jobs[0].Envs
+	if len(got) != 2 || got[0].Key != "JOB_VAR" || got[0].Value != "build-only" || got[1].Key != "SHARED" || got[1].Value != "from-job" {
+		t.Fatalf("Envs = %#v, want job envs", got)
+	}
+}

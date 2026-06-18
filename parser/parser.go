@@ -17,7 +17,7 @@ type PipelineConf struct {
 	Cron    string `yaml:"cron,omitempty"`
 	// NOTE 使用指针，这样可以判断是否存在该字段
 	Notifiers *notifiersConf `yaml:"notifiers,omitempty"`
-	Envs      []string       `yaml:"envs,omitempty"`
+	Envs      DictList[string, string] `yaml:"envs,omitempty"`
 	Workdir   string         `yaml:"workdir,omitempty"`
 	Stages    []string       `yaml:"stages" validate:"required"`
 	Skips     []string       `yaml:"skips,omitempty"`
@@ -37,6 +37,7 @@ type jobConf struct {
 	Actions      []string  `yaml:"actions" validate:"required"`
 	Timeout      string    `yaml:"timeout,omitempty"`
 	AllowFailure bool      `yaml:"allow_failure,omitempty"`
+	Envs         DictList[string, string] `yaml:"envs,omitempty"`
 	Exports      []string  `yaml:"exports,omitempty"`
 	Hooks        hooksConf `yaml:"hooks,omitempty"`
 }

@@ -19,6 +19,7 @@ type Action struct {
 	Cmd    string
 	Args   []string
 	Shell  [2]string // shellCmd, shellFlag
+	Envs   []string
 	busy   bool
 	stdout io.ReadCloser
 	stderr io.ReadCloser
@@ -35,9 +36,16 @@ func NewAction(shell [2]string, cmd string, args ...string) *Action {
 	}
 }
 
+func (a *Action) SetEnvs(envs []string) {
+	a.Envs = envs
+}
+
 func (a *Action) prepare(ctx context.Context) *exec.Cmd {
 	// cmd := exec.CommandContext(ctx, a.Cmd, a.Args...)
 	cmd := ShellCommandContext(ctx, a.Shell[0], a.Shell[1], a.Cmd, a.Args...)
+	if len(a.Envs) > 0 {
+		cmd.Env = append(os.Environ(), a.Envs...)
+	}
 	// a.stdout, _ = cmd.StdoutPipe()
 	// a.stderr, _ = cmd.StderrPipe()
 	return cmd

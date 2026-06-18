@@ -2,8 +2,11 @@ package pipeline
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,6 +53,18 @@ var Builtins = []*Env{
 		Description: "Current Job name",
 	},
 	{
+		Name:        "OS",
+		Description: "Current OS",
+	},
+	{
+		Name:        "ARCH",
+		Description: "Current Architecture",
+	},
+	{
+		Name:        "CPU_NUM",
+		Description: "Number of CPU Core(s)",
+	},
+	{
 		Name:        "TEMP_DIR",
 		Description: "Temporary directory",
 	},
@@ -93,6 +108,21 @@ func setupBuiltins(p *Pipeline) {
 			Description: "Current Job name",
 		},
 		{
+			Name:        "OS",
+			Value:       runtime.GOOS,
+			Description: "Current OS",
+		},
+		{
+			Name:        "ARCH",
+			Value:       runtime.GOARCH,
+			Description: "Current Architecture",
+		},
+		{
+			Name:        "CPU_NUM",
+			Value:       strconv.Itoa(runtime.NumCPU()),
+			Description: "Number of logical CPU(s)",
+		},
+		{
 			Name:        "TEMP_DIR",
 			Value:       os.TempDir(),
 			Description: "Temporary directory",
@@ -101,6 +131,44 @@ func setupBuiltins(p *Pipeline) {
 	for _, env := range Builtins {
 		p.Envs.Append(env.Name, env.Value)
 	}
+}
+
+// 处理环境变量
+func resolveEnvList(shell [2]string, envs EnvList, bases ...EnvList) EnvList {
+	resolved := EnvList{}
+	for _, env := range envs {
+		key := env.Key
+		value := env.Value
+		// 1. 执行value中可能包含的$变量以及`命令`
+		cmds := findInlineCmd(value, shell)
+		for _, cmd := range cmds {
+			output, err := cmd.cmd.CombinedOutput()
+			if err != nil {
+				slog.Error(fmt.Sprintf("failed to expr %s: %v", cmd.cmd.String(), err), "error", err, "expr", cmd.cmd.String())
+				continue
+			}
+			value = value[:cmd.startPos] + strings.TrimSuffix(string(output), "\n") + value[cmd.endPos+1:]
+		}
+		// 2. 将命令执行结果展开
+		value = os.Expand(value, func(v string) string {
+			// envs比bases的查找优先级更高
+			if val, ok := resolved.Find(v); ok {
+				return val
+			}
+			for _, base := range bases {
+				if val, ok := base.Find(v); ok {
+					return val
+				}
+			}
+			// 最后再回退到环境变量
+			if val := os.Getenv(v); val != "" {
+				return val
+			}
+			return ""
+		})
+		resolved.Append(key, value)
+	}
+	return resolved
 }
 
 type inlineCmd struct {

@@ -85,8 +85,8 @@ version: "1.0.0"
 cron: "1 * * * *"
 
 envs:
-  - CMAKE_GENERATOR=Ninja
-  - MOTTO="An apple a day $(date +%Y-%m-%d), keeps the `echo 'doctor'` away"
+  CMAKE_GENERATOR: Ninja
+  MOTTO: "An apple a day $(date +%Y-%m-%d), keeps the `echo 'doctor'` away"
 
 workdir: "D:\\Codes\\C++\\myproject"
 
@@ -101,9 +101,11 @@ skips:
 
 build_job:
   stage: build
+  envs:
+    CMAKE_BUILD_TYPE: Release
   actions:
     - echo "$STAGE_NAME - $JOB_NAME"
-    - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    - cmake -S . -B build -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
     - cmake --build build -j8
   hooks:
     before:
@@ -139,6 +141,27 @@ cleanup_job:
     - rm -rf build
   allow_failure: yes
 ```
+
+### Environment Variables
+
+Use `envs` to define environment variables in the same shape as GitLab CI `variables`, with this project's keyword name. Top-level `envs` are available to every job. Job-level `envs` are available only to that job and override top-level variables with the same name.
+
+```yaml
+envs:
+  MODE: global
+  OUT_DIR: build/out
+
+build_job:
+  stage: build
+  envs:
+    MODE: build
+    PACKAGE_DIR: "$OUT_DIR/$JOB_NAME"
+  actions:
+    - echo "$MODE"
+    - echo "$PACKAGE_DIR"
+```
+
+`JOB_NAME` is a job-level builtin variable injected into each job's actions and hooks. It is not written to the parent process environment, so jobs running in parallel do not overwrite each other's `JOB_NAME`.
 
 ### Passing Variables Between Stages
 
@@ -194,7 +217,7 @@ Include paths are resolved relative to the YAML file that declares `includes`. F
 
 Wildcard includes support `*` and `**`. Matched files are loaded in file-name order for stable merge behavior. If two matches have the same file name, the full path is used as a tie-breaker. A wildcard that matches no files is treated as an error.
 
-Included files are merged first, then the current file is merged on top. This matches GitLab-style precedence: local values override included values. Top-level jobs with the same name are merged by field, so a local job can override `actions` while keeping an included `stage` or `timeout`. Sequence fields such as `stages`, `envs`, `skips`, `actions`, `hooks.before`, and `hooks.after` are replaced as a whole, not appended.
+Included files are merged first, then the current file is merged on top. This matches GitLab-style precedence: local values override included values. Top-level jobs with the same name are merged by field, so a local job can override `actions` while keeping an included `stage` or `timeout`. Sequence fields such as `stages`, `skips`, `actions`, `hooks.before`, and `hooks.after` are replaced as a whole, not appended. Top-level `envs` are replaced as a whole. Job-level `envs` are merged by key because they are part of the job mapping.
 
 The singleton fields `name`, `version`, `shell`, `cron`, and `workdir` can appear only once across the full include chain. If any included or current file defines one of these fields more than once, parsing fails instead of overriding it.
 

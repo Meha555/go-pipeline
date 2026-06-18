@@ -111,7 +111,7 @@ stages:
   - build
   - test
 envs:
-  - A=1
+  A: "1"
 base_job:
   stage: build
   actions:
@@ -126,14 +126,14 @@ base_job:
   - base.yaml
   - extra.yaml
 envs:
-  - B=2
+  B: "2"
 `)
 
 	conf, err := ParseConfigFile(configPath)
 	if err != nil {
 		t.Fatalf("ParseConfigFile() error = %v", err)
 	}
-	if len(conf.Envs) != 1 || conf.Envs[0] != "B=2" {
+	if len(conf.Envs) != 1 || conf.Envs[0].Key != "B" || conf.Envs[0].Value != "2" {
 		t.Fatalf("Envs = %#v, want sequence replacement", conf.Envs)
 	}
 	if _, ok := conf.Jobs["base_job"]; !ok {
@@ -141,6 +141,37 @@ envs:
 	}
 	if _, ok := conf.Jobs["extra_job"]; !ok {
 		t.Fatalf("extra_job missing after include")
+	}
+}
+
+func TestParseConfigFileReadsMapEnvsAtPipelineAndJob(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestFile(t, tmpDir, "pipeline.yaml", `name: test
+version: 1.0.0
+envs:
+  GLOBAL_VAR: global
+  SHARED: from-global
+stages:
+  - build
+build_job:
+  stage: build
+  envs:
+    JOB_VAR: build-only
+    SHARED: from-job
+  actions:
+    - echo ok
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if len(conf.Envs) != 2 || conf.Envs[0].Key != "GLOBAL_VAR" || conf.Envs[0].Value != "global" || conf.Envs[1].Key != "SHARED" || conf.Envs[1].Value != "from-global" {
+		t.Fatalf("Pipeline Envs = %#v, want map entries in YAML order", conf.Envs)
+	}
+	job := conf.Jobs["build_job"]
+	if len(job.Envs) != 2 || job.Envs[0].Key != "JOB_VAR" || job.Envs[0].Value != "build-only" || job.Envs[1].Key != "SHARED" || job.Envs[1].Value != "from-job" {
+		t.Fatalf("Job Envs = %#v, want map entries in YAML order", job.Envs)
 	}
 }
 

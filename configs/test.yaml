@@ -1,18 +1,16 @@
 name: "test-pipeline"
 version: "1.0.0"
 shell: "sh"
-cron: "@every 5s"
+# cron: "@every 5s"
 
 envs:
-  - "HELLO=world"
-  - GOROOT=D:\Go\go:$GOROOT
-  - "PING=PONG"
-  - "PING=abc:$PING"
-  - "PING=$PING:edf"
-  - "MY_PWD=`pwd`"
-  - "MY_TIMESTAMP=$(date +%s)"
-  - "GET_PIPELINE_TIMESTAMP=$PIPELINE_TIMESTAMP"
-  - "MY_INLINE_CMD=an apple a day,$(date +%s),keeps the `echo -n \"doctor\"` away"
+  HELLO: "world"
+  GOROOT: "D:\\Go\\go:$GOROOT"
+  PING: "$PING:edf"
+  MY_PWD: "`pwd`"
+  MY_TIMESTAMP: "$(date +%s)"
+  GET_PIPELINE_TIMESTAMP: "$PIPELINE_TIMESTAMP"
+  MY_INLINE_CMD: "an apple a day,$(date +%s),keeps the `echo -n \"doctor\"` away"
 
 workdir: "D:\\"
 
@@ -44,6 +42,9 @@ debug_job:
     - "echo \"builtin PIPELINE_WORKDIR: $PIPELINE_WORKDIR\""
     - "echo \"builtin STAGE_NAME: $STAGE_NAME\""
     - "echo \"builtin JOB_NAME: $JOB_NAME\""
+    - "echo \"builtin OS: $OS\""
+    - "echo \"builtin ARCH: $ARCH\""
+    - "echo \"builtin CPU_NUM: $CPU_NUM\""
     - "echo \"builtin TEMP_DIR: $TEMP_DIR\""
     - "echo \"user MY_PWD: $MY_PWD\""
     - "echo \"user MY_TIMESTAMP: $MY_TIMESTAMP\""
@@ -124,10 +125,14 @@ job6:
 
 job7:
   stage: deploy
+  envs:
+    HELLO: "job7-world"
+    JOB_LOCAL_VAR: "$JOB_NAME-local"
   actions:
     - "echo \"job7 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "PWD `pwd`"
     - echo "I am job7, $HELLO"
+    - "echo \"job local var: $JOB_LOCAL_VAR\""
     - "echo \"exported from debug stage: $EXPORTED_FROM_DEBUG\""
     - "echo \"exported stage name: $EXPORTED_STAGE\""
     - echo "I am in deploy stage"

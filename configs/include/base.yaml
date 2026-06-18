@@ -3,7 +3,7 @@ version: "1.0.0"
 shell: "sh"
 
 envs:
-  - DEMO_SOURCE=base
+  DEMO_SOURCE: base
 
 stages:
   - prepare

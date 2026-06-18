@@ -5,8 +5,8 @@ version: "1.0.0"
 
 # 整个pipeline的环境变量
 envs:
-  - CMAKE_TOOLCHAIN_FILE=F:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake # 路径在windows上必须转义，因此如果要括起来的话，必须用双引号
-  - VERSION_TAG=$(git tag --sort=-v:refname | head -n 1)
+  CMAKE_TOOLCHAIN_FILE: "F:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake" # 路径在windows上必须转义，因此如果要括起来的话，必须用双引号
+  VERSION_TAG: "$(git tag --sort=-v:refname | head -n 1)"
 
 # 整个pipeline的工作目录
 workdir: "F:\\repos\\personal\\playground\\cmake_learn"

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/Meha555/go-pipeline/parser"
@@ -17,27 +16,8 @@ func isSkipped(config *parser.PipelineConf, item string) bool {
 
 // MakePipeline 根据配置信息创建流水线
 func MakePipeline(config *parser.PipelineConf) *Pipeline {
-	// 处理环境变量
-	var envs EnvList
-	for _, envLine := range config.Envs {
-		if parts := strings.SplitN(envLine, "=", 2); len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			// envs[key] = os.Expand(value, func(v string) string {
-			// 	if val := os.Getenv(v); val != "" {
-			// 		return val
-			// 	}
-			// 	return envs[v]
-			// })
-			// 注意此时value中可能包含$变量以及命令需要执行，需要在后续展开。选择在后续展开是因为builtin环境变量的初始化在后面
-			envs.Append(key, value)
-		} else {
-			slog.Warn(fmt.Sprintf("invalid env format: %s (expected key=value)", envLine), "env", envLine)
-		}
-	}
-
 	// 创建流水线
-	pipeObj := NewPipeline(config.Name, config.Version, WithShell(config.Shell), WithCron(config.Cron), WithEnvs(envs), WithWorkdir(config.Workdir))
+	pipeObj := NewPipeline(config.Name, config.Version, WithShell(config.Shell), WithCron(config.Cron), WithEnvs(config.Envs), WithWorkdir(config.Workdir))
 
 	// 为每个阶段创建 Stage 对象
 	stageMap := make(map[string]*Stage)
@@ -75,7 +55,7 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			Before: makeActions(pipeObj.Shell, jobDef.Hooks.Before),
 			After:  makeActions(pipeObj.Shell, jobDef.Hooks.After),
 		}
-		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithExports(jobDef.Exports), WithHooks(hooks))
+		jobObj := NewJob(jobName, actions, stageObj, WithAllowFailure(jobDef.AllowFailure), WithJobEnvs(jobDef.Envs), WithExports(jobDef.Exports), WithHooks(hooks))
 		if jobDef.Timeout != "" {
 			if jobTimeout, err := time.ParseDuration(jobDef.Timeout); err == nil {
 				jobObj.Timeout = jobTimeout

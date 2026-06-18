@@ -6,7 +6,7 @@ stages:
 
 # 使用cmd的版本
 envs:
-  - NODE_PATH="D:\\Program Files\\Huawei\\DevEco Studio\\tools\\node\\node.exe"
+  NODE_PATH: "D:\\Program Files\\Huawei\\DevEco Studio\\tools\\node\\node.exe"
 
 debug_job:
   stage: debug
@@ -16,8 +16,8 @@ debug_job:
 
 # 使用sh的版本
 # envs:
-#   - NODE_PATH=/d/Program Files/Huawei/DevEco Studio/tools/node/node.exe
-#   - HVIGORW_PATH=
+#   NODE_PATH: "/d/Program Files/Huawei/DevEco Studio/tools/node/node.exe"
+#   HVIGORW_PATH: ""
 
 # debug_job:
 #   stage: debug
