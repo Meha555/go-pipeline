@@ -163,6 +163,31 @@ build_job:
 
 `JOB_NAME` is a job-level builtin variable injected into each job's actions and hooks. It is not written to the parent process environment, so jobs running in parallel do not overwrite each other's `JOB_NAME`.
 
+### Job Rules
+
+Use job-level `rules` to decide whether a job should run. `rules` must be a non-empty list. Each rule can define `on`; if `on` is omitted, that rule defaults to true. A job runs when any rule matches. If no rules match, the job is skipped successfully.
+
+```yaml
+envs:
+  RUN_BUILD: "true"
+
+build_job:
+  stage: build
+  rules:
+    - on: $RUN_BUILD
+    - on: python scripts/should_build.py
+  actions:
+    - echo build
+```
+
+`on` supports variable references and shell commands:
+
+- `$VAR` or `${VAR}` reads the variable and applies truthy matching. Empty, `0`, `false`, `no`, and `off` are false; other values are true.
+- Any other string is executed with the pipeline shell in the pipeline `workdir`. Exit code `0` is true; non-zero is false.
+- `true` and `false` YAML booleans are supported directly.
+
+Rules are supported on jobs only. Stages do not have rules; if every job in a stage is skipped, the stage completes successfully.
+
 ### Passing Variables Between Stages
 
 Jobs can export local dotenv files with the `exports` keyword. After all jobs in a stage finish successfully, Go-Pipeline reads each exported file and injects its `KEY=VALUE` entries into the pipeline environment. Later stages can use these variables in actions and hooks.

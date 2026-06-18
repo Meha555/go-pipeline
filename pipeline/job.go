@@ -42,6 +42,7 @@ type Job struct {
 	Name         string
 	Actions      []*Action
 	Envs         EnvList
+	Rules        []Rule
 	Exports      []string
 	Hooks        *Hooks
 	Timeout      time.Duration
@@ -76,6 +77,12 @@ func WithExports(exports []string) JobOptions {
 func WithJobEnvs(envs EnvList) JobOptions {
 	return func(j *Job) {
 		j.Envs = envs
+	}
+}
+
+func WithRules(rules []Rule) JobOptions {
+	return func(j *Job) {
+		j.Rules = rules
 	}
 }
 
@@ -119,10 +126,15 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 
 	j.logger.Info(fmt.Sprintf("Job@%s: %d actions", j.Name, len(j.Actions)), "actions", len(j.Actions))
 	defer func() {
-		if status == Failed {
+		switch status {
+		case Failed:
 			j.logger.Error(fmt.Sprintf("Job@%s failed", j.Name))
-		} else {
+		case Skiped:
+			j.logger.Info(fmt.Sprintf("Job@%s skipped by rules", j.Name))
+		case Success:
 			j.logger.Info(fmt.Sprintf("Job@%s success", j.Name))
+		default:
+			j.logger.Error(fmt.Sprintf("Job@%s finished with status: %s", j.Name, status))
 		}
 	}()
 
@@ -137,6 +149,13 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 	applyActionEnvs(j.Hooks.Before, jobEnv)
 	applyActionEnvs(j.Actions, jobEnv)
 	applyActionEnvs(j.Hooks.After, jobEnv)
+
+	// 检查Job的rules
+	if len(j.Rules) > 0 && !j.matchRules(ctx, jobEnv) {
+		status = Skiped
+		j.resCh <- status
+		return
+	}
 
 	if len(j.Hooks.Before) > 0 {
 		if err := j.Hooks.DoBefore(ctx); err != nil {
@@ -248,6 +267,7 @@ func parseExportFile(path string) (map[string]string, error) {
 	return values, nil
 }
 
+// 变量名字符合规则：[A-Za-z_][A-Za-z0-9_]*
 func isValidExportKey(key string) bool {
 	if key == "" {
 		return false

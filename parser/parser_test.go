@@ -206,6 +206,63 @@ build_job:
 	}
 }
 
+func TestParseConfigFileReadsJobRules(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestFile(t, tmpDir, "pipeline.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  rules:
+    - on: $RUN_BUILD
+    - on: python scripts/should_build.py
+    - {}
+  actions:
+    - echo ok
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	rules := conf.Jobs["build_job"].Rules
+	if len(rules) != 3 {
+		t.Fatalf("len(Rules) = %d, want 3", len(rules))
+	}
+	if rules[0].On.Value != "$RUN_BUILD" || rules[1].On.Value != "python scripts/should_build.py" {
+		t.Fatalf("Rules = %#v, want on values", rules)
+	}
+	if !rules[2].On.Default {
+		t.Fatalf("third rule should default to on: true, got %#v", rules[2].On)
+	}
+}
+
+func TestParseConfigFileRejectsEmptyRules(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := writeTestFile(t, tmpDir, "pipeline.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+build_job:
+  stage: build
+  rules: []
+  actions:
+    - echo ok
+`)
+
+	_, err := ParseConfigFile(configPath)
+	if err == nil || !strings.Contains(err.Error(), "Rules") || !strings.Contains(err.Error(), "min") {
+		t.Fatalf("ParseConfigFile() error = %v, want empty rules validation error", err)
+	}
+}
+
+func TestParseConfigFileReadsExampleTestConfig(t *testing.T) {
+	if _, err := ParseConfigFile(filepath.Join("..", "configs", "test.yaml")); err != nil {
+		t.Fatalf("ParseConfigFile(configs/test.yaml) error = %v", err)
+	}
+}
+
 func TestParseConfigFileReplacesNonJobTopLevelMappings(t *testing.T) {
 	tmpDir := t.TempDir()
 	writeTestFile(t, tmpDir, "base.yaml", `name: test

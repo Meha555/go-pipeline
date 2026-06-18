@@ -23,6 +23,8 @@ const (
 	keywordTimeout      = "timeout"
 	keywordAllowFailure = "allow_failure"
 	keywordExports      = "exports"
+	keywordRules        = "rules"
+	keywordOn           = "on"
 	keywordSkips        = "skips"
 	keywordHooks        = "hooks"
 	keywordHookBefore   = "before"
@@ -45,6 +47,8 @@ var keywordMap = []string{
 	keywordTimeout,
 	keywordAllowFailure,
 	keywordExports,
+	keywordRules,
+	keywordOn,
 	keywordSkips,
 	keywordHooks,
 	keywordHookBefore,

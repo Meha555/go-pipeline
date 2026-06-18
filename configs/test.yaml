@@ -29,7 +29,7 @@ skips: # 可以是stage或job
   - job3
   - job4
   - job5
-  - job6
+  # - job6
   # - job7
 
 debug_job:
@@ -118,6 +118,8 @@ job5:
 
 job6:
   stage: deploy
+  rules:
+    - on: test "$EXPORTED_STAGE" != "debug"
   actions:
     - "echo \"job6 STAGE_NAME: $STAGE_NAME, JOB_NAME: $JOB_NAME\""
     - echo "I am job6, $HELLO"

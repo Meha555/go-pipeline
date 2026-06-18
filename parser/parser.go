@@ -16,11 +16,11 @@ type PipelineConf struct {
 	Shell   string `yaml:"shell,omitempty"`
 	Cron    string `yaml:"cron,omitempty"`
 	// NOTE 使用指针，这样可以判断是否存在该字段
-	Notifiers *notifiersConf `yaml:"notifiers,omitempty"`
+	Notifiers *notifiersConf           `yaml:"notifiers,omitempty"`
 	Envs      DictList[string, string] `yaml:"envs,omitempty"`
-	Workdir   string         `yaml:"workdir,omitempty"`
-	Stages    []string       `yaml:"stages" validate:"required"`
-	Skips     []string       `yaml:"skips,omitempty"`
+	Workdir   string                   `yaml:"workdir,omitempty"`
+	Stages    []string                 `yaml:"stages" validate:"required"`
+	Skips     []string                 `yaml:"skips,omitempty"`
 	// NOTE gopkg.in/yaml.v3 库中，结构体字段的声明顺序会影响解析优先级。如果 inline 字段（Jobs）在结构体中声明的位置早于其他关键字段（如 Stages/Skips），可能导致部分嵌套字段被意外忽略。
 	Jobs map[string]jobConf `yaml:",inline" validate:"dive"`
 }
@@ -33,13 +33,14 @@ type notifiersConf struct {
 }
 
 type jobConf struct {
-	Stage        string    `yaml:"stage" validate:"required"`
-	Actions      []string  `yaml:"actions" validate:"required"`
-	Timeout      string    `yaml:"timeout,omitempty"`
-	AllowFailure bool      `yaml:"allow_failure,omitempty"`
+	Stage        string                   `yaml:"stage" validate:"required"`
+	Actions      []string                 `yaml:"actions" validate:"required"`
+	Timeout      string                   `yaml:"timeout,omitempty"`
+	AllowFailure bool                     `yaml:"allow_failure,omitempty"`
 	Envs         DictList[string, string] `yaml:"envs,omitempty"`
-	Exports      []string  `yaml:"exports,omitempty"`
-	Hooks        hooksConf `yaml:"hooks,omitempty"`
+	Rules        []RuleConf               `yaml:"rules,omitempty" validate:"omitempty,min=1,dive"`
+	Exports      []string                 `yaml:"exports,omitempty"`
+	Hooks        hooksConf                `yaml:"hooks,omitempty"`
 }
 
 type hooksConf struct {
@@ -94,7 +95,6 @@ func ParseConfigFile(configPath string) (*PipelineConf, error) {
 			}
 		}
 	}
-
 	return config, nil
 }
 
