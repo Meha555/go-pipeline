@@ -1,5 +1,6 @@
 includes:
   - include/base.yaml
+includes:
   - include/jobs/*.yaml
 
 envs:

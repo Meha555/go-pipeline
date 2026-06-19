@@ -144,6 +144,41 @@ envs:
 	}
 }
 
+func TestParseConfigFileSupportsMultipleIncludesBlocks(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "base.yaml", `name: test
+version: 1.0.0
+stages:
+  - build
+  - test
+build_job:
+  stage: build
+  actions:
+    - echo build
+`)
+	writeTestFile(t, tmpDir, "jobs/test.yaml", `test_job:
+  stage: test
+  actions:
+    - echo test
+`)
+	configPath := writeTestFile(t, tmpDir, "main.yaml", `includes:
+  - base.yaml
+includes:
+  - jobs/*.yaml
+`)
+
+	conf, err := ParseConfigFile(configPath)
+	if err != nil {
+		t.Fatalf("ParseConfigFile() error = %v", err)
+	}
+	if _, ok := conf.Jobs["build_job"]; !ok {
+		t.Fatalf("build_job missing after first includes block")
+	}
+	if _, ok := conf.Jobs["test_job"]; !ok {
+		t.Fatalf("test_job missing after second includes block")
+	}
+}
+
 func TestParseConfigFileReadsMapEnvsAtPipelineAndJob(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := writeTestFile(t, tmpDir, "pipeline.yaml", `name: test
@@ -441,7 +476,7 @@ build_job:
 		t.Fatalf("ParseConfigFile() error = %v", err)
 	}
 	logs := buf.String()
-	if !strings.Contains(logs, `"level":"debug"`) || !strings.Contains(logs, `"message":"load config`) {
+	if !strings.Contains(logs, `"level":"debug"`) || !strings.Contains(logs, `"message":"loading config`) {
 		t.Fatalf("logs = %q, want debug load config entry", logs)
 	}
 	if !strings.Contains(logs, `"level":"warn"`) || !strings.Contains(logs, `"key":"build_job.actions"`) || !strings.Contains(logs, `warning: key \"build_job.actions\"`) {

@@ -144,7 +144,7 @@ func (j *Job) Do(ctx context.Context) (status Status) {
 		defer cancel()
 	}
 
-	// 向Job和Job中的Actions注入环境变量
+	// 向Job中的Actions/Hooks注入环境变量。不能直接给当前进程注入，因为Job是并发执行的，在Job.Do中修改。
 	jobEnv := j.buildEnv()
 	applyActionEnvs(j.Hooks.Before, jobEnv)
 	applyActionEnvs(j.Actions, jobEnv)

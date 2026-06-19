@@ -124,8 +124,7 @@ func (p *Pipeline) preRun(context.Context) Status {
 		// 初始化内置环境变量
 		setupBuiltins(p)
 		// 初始化定制环境变量
-		resolved := resolveEnvList(p.Shell, p.Envs)
-		p.Envs = resolved
+		p.Envs = resolveEnvList(p.Shell, p.Envs)
 		for _, env := range p.Envs {
 			if err := os.Setenv(env.Key, env.Value); err != nil {
 				p.logger.Error(fmt.Sprintf("set env %s=%s for pipeline %s failed: %v", env.Key, env.Value, p.Name, err), "error", err, "key", env.Key, "value", env.Value)

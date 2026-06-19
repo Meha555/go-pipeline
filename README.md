@@ -238,6 +238,15 @@ includes:
   - jobs/**/*.yml
 ```
 
+You can declare `includes` more than once in the same YAML file. Blocks are processed in the order they appear:
+
+```yaml
+includes:
+  - base.yaml
+includes:
+  - jobs/*.yaml
+```
+
 Include paths are resolved relative to the YAML file that declares `includes`. For example, if `configs/main.yaml` includes `base.yaml`, Go-Pipeline loads `configs/base.yaml`. Nested includes are resolved relative to the nested file.
 
 Wildcard includes support `*` and `**`. Matched files are loaded in file-name order for stable merge behavior. If two matches have the same file name, the full path is used as a tie-breaker. A wildcard that matches no files is treated as an error.

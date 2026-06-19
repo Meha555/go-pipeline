@@ -39,6 +39,7 @@ func (s *Stage) AddJob(job *Job) *Stage {
 }
 
 func (s *Stage) Perform(ctx context.Context) (status Status) {
+	// Stage是串行执行的，所以这里不会对当前进程的环境变量表产生并发写入
 	os.Setenv("STAGE_NAME", s.Name)
 	status = Success
 	if trace, ok := ctx.Value(internal.TraceKey).(bool); ok && trace {
