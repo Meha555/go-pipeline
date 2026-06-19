@@ -15,15 +15,6 @@ import (
 
 const includesKey = "includes"
 
-// 仅允许出现一次的关键字
-var singletonKeys = map[string]struct{}{
-	keywordName:    {},
-	keywordVersion: {},
-	keywordShell:   {},
-	keyWordCron:    {},
-	keywordWorkdir: {},
-}
-
 func loadConfigNode(configPath string) (*yaml.Node, error) {
 	node, _, err := loadConfigNodeWithStack(configPath, nil)
 	return node, err

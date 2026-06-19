@@ -253,7 +253,7 @@ Wildcard includes support `*` and `**`. Matched files are loaded in file-name or
 
 Included files are merged first, then the current file is merged on top. This matches GitLab-style precedence: local values override included values. Top-level jobs with the same name are merged by field, so a local job can override `actions` while keeping an included `stage` or `timeout`. Sequence fields such as `stages`, `skips`, `actions`, `hooks.before`, and `hooks.after` are replaced as a whole, not appended. Top-level `envs` are replaced as a whole. Job-level `envs` are merged by key because they are part of the job mapping.
 
-The singleton fields `name`, `version`, `shell`, `cron`, and `workdir` can appear only once across the full include chain. If any included or current file defines one of these fields more than once, parsing fails instead of overriding it.
+The singleton fields `name`, `version`, `shell`, `cron`, `workdir`, and `stages` can appear only once across the full include chain. If any included or current file defines one of these fields more than once, parsing fails instead of overriding it.
 
 When a later file overrides an existing key, Go-Pipeline prints a warning to stderr, for example:
 

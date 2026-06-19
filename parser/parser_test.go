@@ -555,6 +555,7 @@ func TestParseConfigFileReturnsErrorForDuplicateSingletonFields(t *testing.T) {
 		{name: "shell", field: "shell", base: "sh", main: "bash"},
 		{name: "cron", field: "cron", base: "@every 1m", main: "@every 2m"},
 		{name: "workdir", field: "workdir", base: "/tmp/base", main: "/tmp/main"},
+		{name: "stages", field: "stages", base: "[build]", main: "[test]"},
 	}
 
 	for _, tt := range tests {
@@ -575,12 +576,25 @@ job:
 			if tt.field == "version" {
 				baseContent = strings.Replace(baseContent, "version: 1.0.0\n", "", 1)
 			}
-			baseContent += tt.field + `: "` + tt.base + `"
+			if tt.field == "stages" {
+				baseContent = strings.Replace(baseContent, "stages:\n  - build\n", "", 1)
+				baseContent += tt.field + `: ` + tt.base + `
 `
+			} else {
+				baseContent += tt.field + `: "` + tt.base + `"
+`
+			}
 			writeTestFile(t, tmpDir, "base.yaml", baseContent)
-			configPath := writeTestFile(t, tmpDir, "main.yaml", `includes: base.yaml
-`+tt.field+`: "`+tt.main+`"
-`)
+			mainContent := `includes: base.yaml
+`
+			if tt.field == "stages" {
+				mainContent += tt.field + `: ` + tt.main + `
+`
+			} else {
+				mainContent += tt.field + `: "` + tt.main + `"
+`
+			}
+			configPath := writeTestFile(t, tmpDir, "main.yaml", mainContent)
 
 			_, err := ParseConfigFile(configPath)
 			if err == nil || !strings.Contains(err.Error(), "duplicate singleton field \""+tt.field+"\"") {

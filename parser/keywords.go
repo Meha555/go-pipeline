@@ -58,3 +58,13 @@ var keywordMap = []string{
 func IsKeyword(token string) bool {
 	return slices.Contains(keywordMap, token)
 }
+
+// 仅允许出现一次的关键字
+var singletonKeys = map[string]struct{}{
+	keywordName:    {},
+	keywordVersion: {},
+	keywordShell:   {},
+	keyWordCron:    {},
+	keywordWorkdir: {},
+	keywordStages:  {},
+}
