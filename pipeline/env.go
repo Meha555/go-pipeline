@@ -129,7 +129,9 @@ func setupBuiltins(p *Pipeline) {
 		},
 	}
 	for _, env := range Builtins {
-		p.Envs.Append(env.Name, env.Value)
+		// 必须用 Prepand ，这样才能确保内置变量放在p.Envs最前头，
+		// 从而使得自定义变量可以引用内置变量
+		p.Envs.Prepand(env.Name, env.Value)
 	}
 }
 
