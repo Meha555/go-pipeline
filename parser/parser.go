@@ -34,7 +34,7 @@ type notifiersConf struct {
 
 type jobConf struct {
 	Stage        string                   `yaml:"stage" validate:"required"`
-	Actions      []string                 `yaml:"actions" validate:"required"`
+	Actions      []string                 `yaml:"actions"`
 	Timeout      string                   `yaml:"timeout,omitempty"`
 	AllowFailure bool                     `yaml:"allow_failure,omitempty"`
 	Envs         DictList[string, string] `yaml:"envs,omitempty"`
