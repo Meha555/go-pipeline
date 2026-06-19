@@ -34,6 +34,12 @@ func NewStage(name string, p *Pipeline) *Stage {
 }
 
 func (s *Stage) AddJob(job *Job) *Stage {
+	for _, existing := range s.Jobs {
+		if existing.Name == job.Name {
+			s.logger.Error(fmt.Sprintf("duplicate job %q in stage %s", job.Name, s.Name), "job", job.Name, "stage", s.Name)
+			os.Exit(1)
+		}
+	}
 	s.Jobs = append(s.Jobs, job)
 	return s
 }

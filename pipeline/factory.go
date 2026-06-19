@@ -26,10 +26,12 @@ func MakePipeline(config *parser.PipelineConf) *Pipeline {
 			continue
 		}
 		stageObj, exists := stageMap[stageName]
-		if !exists {
-			stageObj = NewStage(stageName, pipeObj)
-			stageMap[stageName] = stageObj
+		if exists {
+			pipeObj.logger.Error(fmt.Sprintf("duplicate stage %q", stageName), "stage", stageName)
+			os.Exit(1)
 		}
+		stageObj = NewStage(stageName, pipeObj)
+		stageMap[stageName] = stageObj
 		pipeObj.AddStage(stageObj)
 	}
 

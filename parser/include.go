@@ -29,7 +29,7 @@ func loadConfigNodeWithStack(configPath string, stack []string) (*yaml.Node, map
 	}
 	absPath = filepath.Clean(absPath)
 
-	// 检查路径，确认是否存在循环引用
+	// 检查路径，确认是否存在循环引用（如果stack中出现了重复的文件，说明成环了）
 	for i, item := range stack {
 		if item == absPath {
 			// 拷贝一份stack，避免拼接后的cycle切片复用stack切片的底层数组
@@ -275,7 +275,7 @@ func shouldMergeMapping(pathParts []string, baseValue, overrideValue *yaml.Node)
 	if len(pathParts) == 0 || len(pathParts) > 2 {
 		return false
 	}
-	if len(pathParts) == 1 && IsKeyword(pathParts[0]) {
+	if len(pathParts) == 1 && IsKeyword(pathParts[0]) && !isMergeableKey(pathParts[0]) {
 		return false
 	}
 	return baseValue.Kind == yaml.MappingNode && overrideValue.Kind == yaml.MappingNode

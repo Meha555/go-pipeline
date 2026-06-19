@@ -15,3 +15,4 @@ local_job:
   stage: test
   actions:
     - echo "local job defined in configs/include-demo.yaml"
+    - echo "BASE_ENV = $BASE_ENV"

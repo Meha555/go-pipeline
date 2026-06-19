@@ -86,6 +86,7 @@ func NewPipeline(name, version string, opts ...PipelineOptions) *Pipeline {
 		pwd, err := os.Getwd()
 		if err != nil {
 			p.logger.Error(fmt.Sprintf("get current workdir failed: %v", err), "error", err)
+			os.Exit(1)
 		}
 		p.Workdir = pwd
 	}

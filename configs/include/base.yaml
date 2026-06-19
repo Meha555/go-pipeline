@@ -4,6 +4,7 @@ shell: "sh"
 
 envs:
   DEMO_SOURCE: base
+  BASE_ENV: "this is base env"
 
 stages:
   - prepare

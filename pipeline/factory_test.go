@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -81,6 +82,29 @@ build_job:
 		if got[i] != want[i] {
 			t.Fatalf("Exports = %#v, want %#v", got, want)
 		}
+	}
+}
+
+func TestMakePipelineRejectsDuplicateStageName(t *testing.T) {
+	if os.Getenv("TEST_DUPLICATE_STAGE") == "1" {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "pipeline.yaml")
+		config := []byte(`name: test
+version: 1.0.0
+stages:
+  - build
+  - build
+`)
+		os.WriteFile(configPath, config, 0o600)
+		conf, _ := parser.ParseConfigFile(configPath)
+		MakePipeline(conf)
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestMakePipelineRejectsDuplicateStageName")
+	cmd.Env = append(os.Environ(), "TEST_DUPLICATE_STAGE=1")
+	err := cmd.Run()
+	if err == nil {
+		t.Fatalf("expected process to exit with non-zero status")
 	}
 }
 

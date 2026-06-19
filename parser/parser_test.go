@@ -133,8 +133,12 @@ envs:
 	if err != nil {
 		t.Fatalf("ParseConfigFile() error = %v", err)
 	}
-	if len(conf.Envs) != 1 || conf.Envs[0].Key != "B" || conf.Envs[0].Value != "2" {
-		t.Fatalf("Envs = %#v, want sequence replacement", conf.Envs)
+	if len(conf.Envs) != 2 {
+		t.Fatalf("Envs = %#v, want merged envs with 2 entries", conf.Envs)
+	}
+	envMap := conf.Envs.ToMap()
+	if envMap["A"] != "1" || envMap["B"] != "2" {
+		t.Fatalf("Envs = %#v, want A=1 and B=2", conf.Envs)
 	}
 	if _, ok := conf.Jobs["base_job"]; !ok {
 		t.Fatalf("base_job missing after include")
@@ -328,11 +332,11 @@ notifiers:
 	if err != nil {
 		t.Fatalf("ParseConfigFile() error = %v", err)
 	}
-	if conf.Notifiers.Email != nil {
-		t.Fatalf("Email notifier should be replaced by local notifiers mapping")
+	if conf.Notifiers.Email == nil {
+		t.Fatalf("Email notifier missing after merge")
 	}
 	if conf.Notifiers.Bot == nil {
-		t.Fatalf("Bot notifier missing after local notifiers mapping")
+		t.Fatalf("Bot notifier missing after merge")
 	}
 }
 

@@ -68,3 +68,7 @@ var singletonKeys = map[string]struct{}{
 	keywordWorkdir: {},
 	keywordStages:  {},
 }
+
+func isMergeableKey(key string) bool {
+	return !isSingletonKey(key)
+}
