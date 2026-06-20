@@ -173,6 +173,26 @@ func resolveEnvList(shell [2]string, envs EnvList, bases ...EnvList) EnvList {
 	return resolved
 }
 
+// 变量名字符合规则：[A-Za-z_][A-Za-z0-9_]*
+func isValidEnvKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := range key {
+		c := key[i]
+		if i == 0 {
+			if c != '_' && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') {
+				return false
+			}
+			continue
+		}
+		if c != '_' && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
+}
+
 type inlineCmd struct {
 	cmd      *exec.Cmd
 	startPos int // 包括`或者$(的起始位置

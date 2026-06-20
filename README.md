@@ -11,7 +11,7 @@ A lightweight, flexible, and powerful pipeline/workflow execution engine written
 - **Timeout Support**: Configure timeouts for individual jobs
 - **Failure Handling**: Control whether job failures should fail the entire pipeline
 - **Working Directory**: Set custom working directories for your pipelines
-- **Stage Variable Passing**: Export dotenv files from one stage and inject variables into later stages
+- **Stage Variable Passing**: Export job variables from one stage and inject them into later stages
 - **Extensible**: Easy to extend with custom actions and functionality
 
 ## Installation
@@ -190,7 +190,7 @@ Rules are supported on jobs only. Stages do not have rules; if every job in a st
 
 ### Passing Variables Between Stages
 
-Jobs can export local dotenv files with the `exports` keyword. After all jobs in a stage finish successfully, Go-Pipeline reads each exported file and injects its `KEY=VALUE` entries into the pipeline environment. Later stages can use these variables in actions and hooks.
+Jobs can export variables with the `exports` keyword. After all jobs in a stage finish successfully, Go-Pipeline injects each exported entry into the pipeline environment. Later stages can use these variables in actions and hooks.
 
 ```yaml
 stages:
@@ -200,10 +200,10 @@ stages:
 build_job:
   stage: build
   actions:
-    - echo "BUILD_DIR=build/release" >> build.env
-    - echo "BUILD_VERSION=1.2.3" >> build.env
+    - make build
   exports:
-    - build.env
+    BUILD_DIR: build/release
+    BUILD_VERSION: 1.2.3
 
 test_job:
   stage: test
@@ -212,14 +212,7 @@ test_job:
     - echo "Build version: $BUILD_VERSION"
 ```
 
-`exports` is a list of local temporary file paths. Relative paths are resolved from the pipeline `workdir`; absolute paths are used as-is. Export files are not uploaded, archived, or downloaded. Go-Pipeline removes the configured export files when the pipeline run finishes.
-
-Export files use a minimal dotenv format:
-
-```text
-KEY=VALUE
-# comments and empty lines are ignored
-```
+`exports` uses the same map shape as `envs`. Export values support variable references and inline shell commands using the same resolution rules as `envs`.
 
 Variables are only guaranteed to be available to later stages. Jobs in the same stage run in parallel, so they should not depend on each other's exports.
 

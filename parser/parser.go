@@ -39,7 +39,7 @@ type jobConf struct {
 	AllowFailure bool                     `yaml:"allow_failure,omitempty"`
 	Envs         DictList[string, string] `yaml:"envs,omitempty"`
 	Rules        []RuleConf               `yaml:"rules,omitempty" validate:"omitempty,min=1,dive"`
-	Exports      []string                 `yaml:"exports,omitempty"`
+	Exports      DictList[string, string] `yaml:"exports,omitempty"`
 	Hooks        hooksConf                `yaml:"hooks,omitempty"`
 }
 

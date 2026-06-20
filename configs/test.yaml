@@ -50,13 +50,11 @@ debug_job:
     - "echo \"user MY_TIMESTAMP: $MY_TIMESTAMP\""
     - "echo \"user GET_PIPELINE_TIMESTAMP: $GET_PIPELINE_TIMESTAMP\""
     - "echo \"user MY_INLINE_CMD: $MY_INLINE_CMD\""
-    # stage-exports.env is a temporary exports file and will be removed after the pipeline run.
-    - "echo \"EXPORTED_FROM_DEBUG=debug-$PIPELINE_TIMESTAMP\" > stage-exports.env"
-    - "echo \"EXPORTED_STAGE=$STAGE_NAME\" >> stage-exports.env"
     - "'C:\\Program Files\\LLVM\\bin\\clang++.exe' --version"
     # - exit 1
   exports:
-    - stage-exports.env
+    EXPORTED_FROM_DEBUG: "debug-$PIPELINE_TIMESTAMP"
+    EXPORTED_STAGE: "$STAGE_NAME"
 
 job1:
   stage: build

@@ -225,8 +225,8 @@ build_job:
   actions:
     - echo ok
   exports:
-    - build.env
-    - version.env
+    BUILD_DIR: build/release
+    BUILD_VERSION: 1.2.3
 `)
 
 	conf, err := ParseConfigFile(configPath)
@@ -234,14 +234,8 @@ build_job:
 		t.Fatalf("ParseConfigFile() error = %v", err)
 	}
 	got := conf.Jobs["build_job"].Exports
-	want := []string{"build.env", "version.env"}
-	if len(got) != len(want) {
-		t.Fatalf("Exports = %#v, want %#v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("Exports = %#v, want %#v", got, want)
-		}
+	if len(got) != 2 || got[0].Key != "BUILD_DIR" || got[0].Value != "build/release" || got[1].Key != "BUILD_VERSION" || got[1].Value != "1.2.3" {
+		t.Fatalf("Exports = %#v, want map entries in YAML order", got)
 	}
 }
 

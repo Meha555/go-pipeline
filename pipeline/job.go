@@ -1,14 +1,12 @@
 package pipeline
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/Meha555/go-pipeline/internal"
@@ -43,7 +41,7 @@ type Job struct {
 	Actions      []*Action
 	Envs         EnvList
 	Rules        []Rule
-	Exports      []string
+	Exports      EnvList
 	Hooks        *Hooks
 	Timeout      time.Duration
 	AllowFailure bool
@@ -68,7 +66,7 @@ func WithAllowFailure(allowFailure bool) JobOptions {
 	}
 }
 
-func WithExports(exports []string) JobOptions {
+func WithExports(exports EnvList) JobOptions {
 	return func(j *Job) {
 		j.Exports = exports
 	}
@@ -214,75 +212,16 @@ func (j *Job) Result() <-chan Status {
 }
 
 func (j *Job) importExports() error {
-	values := make(map[string]string)
-	for _, exportPath := range j.Exports {
-		path := resolveExportPath(j.s.p.Workdir, exportPath)
-		parsed, err := parseExportFile(path)
-		if err != nil {
-			return err
+	resolved := resolveEnvList(j.s.p.Shell, j.Exports, j.s.p.Envs)
+	seen := make(map[string]struct{})
+	for _, env := range resolved {
+		if _, exists := seen[env.Key]; exists {
+			slog.Warn(fmt.Sprintf("export variable %s is overwritten", env.Key), "key", env.Key)
 		}
-		for key, value := range parsed {
-			if _, exists := values[key]; exists {
-				slog.Warn(fmt.Sprintf("export variable %s is overwritten", key), "key", key)
-			}
-			values[key] = value
-		}
-	}
-
-	for key, value := range values {
-		if err := os.Setenv(key, value); err != nil {
-			return fmt.Errorf("set export %s failed: %w", key, err)
+		seen[env.Key] = struct{}{}
+		if err := os.Setenv(env.Key, env.Value); err != nil {
+			return fmt.Errorf("set export %s failed: %w", env.Key, err)
 		}
 	}
 	return nil
-}
-
-func parseExportFile(path string) (map[string]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open export file %s failed: %w", path, err)
-	}
-	defer file.Close()
-
-	values := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-	lineNo := 0
-	for scanner.Scan() {
-		lineNo++
-		line := strings.TrimSuffix(scanner.Text(), "\r")
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		key, value, ok := strings.Cut(line, "=")
-		if !ok || !isValidExportKey(key) {
-			slog.Warn(fmt.Sprintf("ignore invalid export line %s:%d", path, lineNo), "path", path, "line", lineNo)
-			continue
-		}
-		values[key] = value
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read export file %s failed: %w", path, err)
-	}
-	return values, nil
-}
-
-// 变量名字符合规则：[A-Za-z_][A-Za-z0-9_]*
-func isValidExportKey(key string) bool {
-	if key == "" {
-		return false
-	}
-	for i := range key {
-		c := key[i]
-		if i == 0 {
-			if c != '_' && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') {
-				return false
-			}
-			continue
-		}
-		if c != '_' && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
-			return false
-		}
-	}
-	return true
 }

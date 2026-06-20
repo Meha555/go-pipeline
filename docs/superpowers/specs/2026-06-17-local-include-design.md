@@ -11,20 +11,29 @@ The first version supports only local file includes. It does not support GitLab 
 Supported syntax:
 
 ```yaml
-include: base.yaml
+includes: base.yaml
 ```
 
 ```yaml
-include:
+includes:
   - base.yaml
   - jobs/*.yaml
   - jobs/**/*.yml
 ```
 
+The same file can declare `includes` more than once. The parser processes those blocks in YAML order:
+
+```yaml
+includes:
+  - base.yaml
+includes:
+  - jobs/*.yaml
+```
+
 Unsupported syntax returns a parser error:
 
 ```yaml
-include:
+includes:
   - local: base.yaml
 ```
 
@@ -43,7 +52,7 @@ configs/jobs/build.yaml
 In `configs/main.yaml`:
 
 ```yaml
-include:
+includes:
   - base.yaml
   - jobs/*.yaml
 ```
@@ -64,7 +73,7 @@ The parser follows GitLab's include precedence model: included files load first,
 
 Merge order:
 
-1. Includes are processed in declaration order.
+1. Includes are processed in declaration order, including multiple `includes` blocks in the same file.
 2. Wildcard matches are expanded in file-name order at the position where the wildcard appears.
 3. Nested includes are fully resolved before their including file is merged.
 4. The current file is merged last and therefore has final precedence.
@@ -74,7 +83,7 @@ The merge is performed on YAML nodes before unmarshalling into `PipelineConf`. T
 Rules:
 
 - Top-level scalar, sequence, and mapping fields are overridden by the later file.
-- Singleton fields `name`, `version`, `shell`, `cron`, and `workdir` are exceptions: they can appear only once across the full include chain. Repeating any of them is an error.
+- Singleton fields `name`, `version`, `shell`, `cron`, `workdir`, and `stages` are exceptions: they can appear only once across the full include chain. Repeating any of them is an error.
 - Top-level job mappings with the same name are merged recursively.
 - Fields inside the same job are overridden by the later file when present.
 - Sequence fields such as `stages`, `envs`, `skips`, `actions`, `hooks.before`, and `hooks.after` are replaced as a whole, not appended.
@@ -100,7 +109,7 @@ build_job:
 
 ```yaml
 # main.yaml
-include: base.yaml
+includes: base.yaml
 
 envs:
   - B=2

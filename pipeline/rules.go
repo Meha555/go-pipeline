@@ -66,13 +66,13 @@ rules:
 func variableReferenceName(cond string) (string, bool) {
 	if strings.HasPrefix(cond, "${") && strings.HasSuffix(cond, "}") {
 		name := strings.TrimSuffix(strings.TrimPrefix(cond, "${"), "}")
-		return name, isValidExportKey(name)
+		return name, isValidEnvKey(name)
 	}
 	if !strings.HasPrefix(cond, "$") {
 		return "", false
 	}
 	name := strings.TrimPrefix(cond, "$")
-	return name, isValidExportKey(name)
+	return name, isValidEnvKey(name)
 }
 
 func lookupEnv(name string, overrides []string) string {

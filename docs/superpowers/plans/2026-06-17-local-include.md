@@ -31,7 +31,7 @@ Add tests that create temporary config files with `os.WriteFile`, call `ParseCon
 
 Run: `go test ./parser`
 
-Expected: tests fail because `include` is currently treated as an inline job and include files are not loaded.
+Expected: tests fail because `includes` is currently treated as an inline job and include files are not loaded.
 
 ## Task 2: Include Resolver And YAML Merge
 
@@ -65,13 +65,13 @@ Use `filepath.Glob` for `*`. Implement `**` by walking the base directory and ma
 
 Track source file per merged key path such as `build_job.actions`. Log `warning: key "build_job.actions" from <override> overrides value from <base>` whenever a later node replaces an existing node.
 
-Singleton fields `name`, `version`, `shell`, `cron`, and `workdir` must not be replaced. Return an error if a later file repeats one of those fields.
+Singleton fields `name`, `version`, `shell`, `cron`, `workdir`, and `stages` must not be replaced. Return an error if a later file repeats one of those fields.
 
 - [ ] **Step 5: Wire parser entry point**
 
 Change `ParseConfigFile` to call `loadConfigNode`, unmarshal the merged node into `PipelineConf`, then run existing validation.
 
-- [ ] **Step 6: Reserve include keyword**
+- [ ] **Step 6: Reserve includes keyword**
 
 Add `include` to `parser/keywords.go` keyword constants and map.
 
@@ -91,11 +91,11 @@ Expected: parser package tests pass.
 Document supported syntax:
 
 ```yaml
-include: base.yaml
+includes: base.yaml
 ```
 
 ```yaml
-include:
+includes:
   - base.yaml
   - jobs/*.yaml
   - jobs/**/*.yml

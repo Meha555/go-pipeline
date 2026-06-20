@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -171,7 +170,6 @@ func (p *Pipeline) postRun(context.Context) Status {
 	// if prefix, err := stackRestore.Pop(); err == nil {
 	// 	logger.SetPrefix(prefix.(string))
 	// }
-	p.cleanExportFiles()
 	return Success
 }
 
@@ -236,29 +234,4 @@ func (p *Pipeline) Run(ctx context.Context) (status Status) {
 	}
 	status = p.run(ctx)
 	return
-}
-
-func (p *Pipeline) cleanExportFiles() {
-	seen := make(map[string]struct{})
-	for _, stage := range p.Stages {
-		for _, job := range stage.Jobs {
-			for _, exportPath := range job.Exports {
-				path := resolveExportPath(p.Workdir, exportPath)
-				if _, ok := seen[path]; ok {
-					continue
-				}
-				seen[path] = struct{}{}
-				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-					p.logger.Warn(fmt.Sprintf("remove export file %s failed: %v", path, err), "path", path, "error", err)
-				}
-			}
-		}
-	}
-}
-
-func resolveExportPath(workdir, exportPath string) string {
-	if filepath.IsAbs(exportPath) {
-		return exportPath
-	}
-	return filepath.Join(workdir, exportPath)
 }

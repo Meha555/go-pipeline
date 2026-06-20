@@ -3,46 +3,17 @@ package pipeline
 import (
 	"context"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"testing"
 )
 
-func TestPipelineRemovesExportFilesAfterRun(t *testing.T) {
-	tmpDir := t.TempDir()
-	restoreWdAfterTest(t)
-	exportPath := filepath.Join(tmpDir, "build.env")
-
-	p := NewPipeline("test", "1.0.0", WithShell("sh"), WithWorkdir(tmpDir))
-	build := NewStage("build", p)
-	build.AddJob(NewJob("build_job", []*Action{
-		NewAction(p.Shell, "echo BUILD_DIR=build/release > build.env"),
-	}, build, WithExports([]string{"build.env"})))
-	testStage := NewStage("test", p)
-	testStage.AddJob(NewJob("test_job", []*Action{
-		NewAction(p.Shell, "test \"$BUILD_DIR\" = \"build/release\""),
-	}, testStage))
-	p.AddStage(build).AddStage(testStage)
-
-	if status := p.Run(context.Background()); status != Success {
-		t.Fatalf("Pipeline status = %s, want Success", status)
-	}
-	if _, err := os.Stat(exportPath); !os.IsNotExist(err) {
-		t.Fatalf("export file still exists after pipeline run, stat error = %v", err)
-	}
-}
-
 func TestJobDoesNotImportExportsBeforeStageCompletes(t *testing.T) {
 	tmpDir := t.TempDir()
-	exportPath := filepath.Join(tmpDir, "build.env")
-	content := []byte("BUILD_DIR=build/release\n")
-	if err := os.WriteFile(exportPath, content, 0o600); err != nil {
-		t.Fatalf("write export file: %v", err)
-	}
 	t.Setenv("BUILD_DIR", "")
 
 	p := NewPipeline("test", "1.0.0", WithWorkdir(tmpDir))
 	s := NewStage("build", p)
-	j := NewJob("build_job", nil, s, WithExports([]string{"build.env"}))
+	j := NewJob("build_job", nil, s, WithExports(EnvList{{Key: "BUILD_DIR", Value: "build/release"}}))
 
 	s.wg.Add(1)
 	go j.Do(context.Background())
@@ -59,18 +30,17 @@ func TestJobDoesNotImportExportsBeforeStageCompletes(t *testing.T) {
 func TestStageImportsExportsAfterSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	restoreWdAfterTest(t)
-	exportPath := filepath.Join(tmpDir, "build.env")
-	content := []byte("BUILD_DIR=build/release\n# ignored\nBUILD_VERSION=1.2.3\nEMPTY=\n非法=skip\n")
-	if err := os.WriteFile(exportPath, content, 0o600); err != nil {
-		t.Fatalf("write export file: %v", err)
-	}
-	for _, key := range []string{"BUILD_DIR", "BUILD_VERSION", "EMPTY", "非法"} {
+	for _, key := range []string{"BUILD_DIR", "BUILD_VERSION", "EMPTY"} {
 		t.Setenv(key, "")
 	}
 
 	p := NewPipeline("test", "1.0.0", WithWorkdir(tmpDir))
 	s := NewStage("build", p)
-	s.AddJob(NewJob("build_job", nil, s, WithExports([]string{"build.env"})))
+	s.AddJob(NewJob("build_job", nil, s, WithExports(EnvList{
+		{Key: "BUILD_DIR", Value: "build/release"},
+		{Key: "BUILD_VERSION", Value: "1.2.3"},
+		{Key: "EMPTY", Value: ""},
+	})))
 
 	if status := s.Perform(context.Background()); status != Success {
 		t.Fatalf("Stage status = %s, want Success", status)
@@ -84,9 +54,6 @@ func TestStageImportsExportsAfterSuccess(t *testing.T) {
 	}
 	if got := os.Getenv("EMPTY"); got != "" {
 		t.Fatalf("EMPTY = %q, want empty", got)
-	}
-	if got := os.Getenv("非法"); got != "" {
-		t.Fatalf("非法 = %q, want empty because non-ASCII keys are invalid", got)
 	}
 }
 
@@ -103,26 +70,54 @@ func restoreWdAfterTest(t *testing.T) {
 	})
 }
 
-func TestJobDoesNotImportExportsAfterFailure(t *testing.T) {
-	tmpDir := t.TempDir()
-	exportPath := filepath.Join(tmpDir, "build.env")
-	if err := os.WriteFile(exportPath, []byte("SHOULD_NOT_IMPORT=yes\n"), 0o600); err != nil {
-		t.Fatalf("write export file: %v", err)
+func TestStageDoesNotImportExportsAfterFailure(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh is not available")
 	}
+
+	tmpDir := t.TempDir()
+	restoreWdAfterTest(t)
 	t.Setenv("SHOULD_NOT_IMPORT", "")
 
 	p := NewPipeline("test", "1.0.0", WithShell("sh"), WithWorkdir(tmpDir))
 	s := NewStage("build", p)
-	j := NewJob("build_job", []*Action{NewAction(p.Shell, "exit 1")}, s, WithExports([]string{"build.env"}))
+	s.AddJob(NewJob("build_job", []*Action{NewAction(p.Shell, "exit 1")}, s, WithExports(EnvList{{Key: "SHOULD_NOT_IMPORT", Value: "yes"}})))
 
-	s.wg.Add(1)
-	go j.Do(context.Background())
-	if status := <-j.Result(); status != Failed {
-		t.Fatalf("Job status = %s, want Failed", status)
+	if status := s.Perform(context.Background()); status != Failed {
+		t.Fatalf("Stage status = %s, want Failed", status)
 	}
-	s.wg.Wait()
 
 	if got := os.Getenv("SHOULD_NOT_IMPORT"); got != "" {
 		t.Fatalf("SHOULD_NOT_IMPORT = %q, want empty", got)
+	}
+}
+
+func TestStageResolvesExportValuesAfterSuccess(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh is not available")
+	}
+
+	tmpDir := t.TempDir()
+	restoreWdAfterTest(t)
+	t.Setenv("BASE_VERSION", "1.2.3")
+	t.Setenv("RELEASE", "")
+	t.Setenv("COMMAND_VALUE", "")
+
+	p := NewPipeline("test", "1.0.0", WithShell("sh"), WithWorkdir(tmpDir))
+	s := NewStage("build", p)
+	s.AddJob(NewJob("build_job", nil, s, WithExports(EnvList{
+		{Key: "RELEASE", Value: "$BASE_VERSION/release"},
+		{Key: "COMMAND_VALUE", Value: "$(printf export-ok)"},
+	})))
+
+	if status := s.Perform(context.Background()); status != Success {
+		t.Fatalf("Stage status = %s, want Success", status)
+	}
+
+	if got := os.Getenv("RELEASE"); got != "1.2.3/release" {
+		t.Fatalf("RELEASE = %q, want 1.2.3/release", got)
+	}
+	if got := os.Getenv("COMMAND_VALUE"); got != "export-ok" {
+		t.Fatalf("COMMAND_VALUE = %q, want export-ok", got)
 	}
 }

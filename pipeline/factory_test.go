@@ -58,8 +58,8 @@ build_job:
   actions:
     - echo ok
   exports:
-    - build.env
-    - version.env
+    BUILD_DIR: build/release
+    BUILD_VERSION: 1.2.3
 `)
 	if err := os.WriteFile(configPath, config, 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -74,14 +74,8 @@ build_job:
 		t.Fatalf("pipeline shape = %d stages, want one stage with one job", len(pipe.Stages))
 	}
 	got := pipe.Stages[0].Jobs[0].Exports
-	want := []string{"build.env", "version.env"}
-	if len(got) != len(want) {
-		t.Fatalf("Exports = %#v, want %#v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("Exports = %#v, want %#v", got, want)
-		}
+	if len(got) != 2 || got[0].Key != "BUILD_DIR" || got[0].Value != "build/release" || got[1].Key != "BUILD_VERSION" || got[1].Value != "1.2.3" {
+		t.Fatalf("Exports = %#v, want export envs", got)
 	}
 }
 
