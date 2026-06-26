@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/term"
 )
 
 const (
@@ -141,7 +141,7 @@ func writerSupportsColor(writer io.Writer) bool {
 	if !ok {
 		return false
 	}
-	return term.IsTerminal(int(file.Fd()))
+	return isatty.IsTerminal(file.Fd())
 }
 
 func parseLevel(level string) (zerolog.Level, error) {
